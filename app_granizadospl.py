@@ -18,20 +18,10 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 2rem;
-}
-h1, h2, h3 {
-    font-weight: 800;
-}
-div.stButton > button {
-    font-weight: bold;
-    min-height: 2.7rem;
-}
-div[data-testid="stMetricValue"] {
-    font-size: 1.6rem;
-}
+.block-container {padding-top: 1rem; padding-bottom: 2rem;}
+h1, h2, h3 {font-weight: 800;}
+div.stButton > button {font-weight: bold; min-height: 2.7rem;}
+div[data-testid="stMetricValue"] {font-size: 1.6rem;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -40,10 +30,23 @@ ARCHIVO_DATOS = CARPETA_DATOS / "datos_pos.json"
 
 MEDIOS_PAGO = [
     "Efectivo",
-    "Transferencia Nequi / Billeteras virtuales"
+    "Transferencia Nequi / Billeteras virtuales",
 ]
 
 PRESENTACIONES = ["Vaso 12 oz", "Sachet 12 oz"]
+
+# Estos productos no aparecerán en el selector de reabastecimiento.
+# Se conservan en el inventario porque algunas recetas los consumen.
+PRODUCTOS_OCULTOS_REABASTECIMIENTO = {
+    "Aguardiente (copa)",
+    "Baileys (copa)",
+    "Barquillo (und)",
+    "Champaña (copa)",
+    "Ron Blanco (copa)",
+    "Tequila (copa)",
+    "Vodka (copa)",
+    "Whisky (copa)",
+}
 
 # =========================================================
 # TOPPINGS
@@ -59,7 +62,7 @@ TOPPINGS = {
 }
 
 # =========================================================
-# INVENTARIO INICIAL: TODO EN CERO
+# INVENTARIO INICIAL
 # =========================================================
 INVENTARIO_BASE = {
     "Vaso 12 oz (und)": 0,
@@ -87,30 +90,52 @@ INVENTARIO_BASE = {
 }
 
 SABORES_INVENTARIO = [
-    "Bombombum", "Chicle", "Frutos Rojos",
-    "Limonada Cerezada", "Limonada de Coco",
-    "Limonada de Sandía", "Mango Biche",
-    "Manzana Rosada", "Manzana Verde",
-    "Maracumango", "Maracululo", "Maracupiña",
-    "Mora Azul", "Uva",
-
-    "Agave Ice", "Andromeda Ice", "Bon Bon Bum Ice",
-    "Candy Ice", "Cherryboom Ice", "Cosmico Ice",
-    "Estelar Ice", "Fresa Salvaje Ice", "Fourloko Ice",
-    "Interestelar Ice", "Luxury Ice", "Mango Explosivo Ice",
-    "Miami Ice", "Monaco Ice", "Nebula Ice", "Orion Ice",
-    "Smirnoff Lulo Ice", "Smirnoff Limon Ice",
-    "Tropical Caribeña Ice", "Velvet Ice",
-
-    "Bayleys", "Coco Loco", "Piña Colada",
+    "Bombombum",
+    "Chicle",
+    "Frutos Rojos",
+    "Limonada Cerezada",
+    "Limonada de Coco",
+    "Limonada de Sandía",
+    "Mango Biche",
+    "Manzana Rosada",
+    "Manzana Verde",
+    "Maracumango",
+    "Maracululo",
+    "Maracupiña",
+    "Mora Azul",
+    "Uva",
+    "Agave Ice",
+    "Andromeda Ice",
+    "Bon Bon Bum Ice",
+    "Candy Ice",
+    "Cherryboom Ice",
+    "Cosmico Ice",
+    "Estelar Ice",
+    "Fresa Salvaje Ice",
+    "Fourloko Ice",
+    "Interestelar Ice",
+    "Luxury Ice",
+    "Mango Explosivo Ice",
+    "Miami Ice",
+    "Monaco Ice",
+    "Nebula Ice",
+    "Orion Ice",
+    "Smirnoff Lulo Ice",
+    "Smirnoff Limon Ice",
+    "Tropical Caribeña Ice",
+    "Velvet Ice",
+    "Bayleys",
+    "Coco Loco",
+    "Piña Colada",
 ]
 
-for sabor_inventario in SABORES_INVENTARIO:
-    nombre = "Sabor " + sabor_inventario
-    # Se mantiene el nombre de bodega escrito correctamente.
-    if sabor_inventario == "Maracupiña":
-        nombre = "Sabor Maracupíña"
-    INVENTARIO_BASE[nombre] = 0
+for nombre_sabor in SABORES_INVENTARIO:
+    nombre_bodega = (
+        "Sabor Maracupíña"
+        if nombre_sabor == "Maracupiña"
+        else "Sabor " + nombre_sabor
+    )
+    INVENTARIO_BASE[nombre_bodega] = 0
 
 # =========================================================
 # CARTA Y RECETAS
@@ -305,7 +330,7 @@ MENU = {
 }
 
 # =========================================================
-# FUNCIONES
+# FUNCIONES DE DATOS
 # =========================================================
 def ahora():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -317,6 +342,7 @@ def pesos(valor):
 
 def guardar_datos():
     CARPETA_DATOS.mkdir(parents=True, exist_ok=True)
+
     datos = {
         "inventario": st.session_state.inventario,
         "ventas": st.session_state.ventas,
@@ -324,16 +350,16 @@ def guardar_datos():
         "gastos": st.session_state.gastos,
         "anulaciones": st.session_state.anulaciones,
     }
-    archivo_temporal = ARCHIVO_DATOS.with_suffix(".tmp")
-    archivo_temporal.write_text(
+
+    temporal = ARCHIVO_DATOS.with_suffix(".tmp")
+    temporal.write_text(
         json.dumps(datos, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    archivo_temporal.replace(ARCHIVO_DATOS)
+    temporal.replace(ARCHIVO_DATOS)
 
 
 def cargar_datos():
-    # Agrega nuevos productos sin borrar las existencias ya guardadas.
     inventario = INVENTARIO_BASE.copy()
     ventas = []
     movimientos = []
@@ -342,20 +368,25 @@ def cargar_datos():
 
     if ARCHIVO_DATOS.exists():
         try:
-            datos = json.loads(ARCHIVO_DATOS.read_text(encoding="utf-8"))
-            inventario_guardado = datos.get("inventario", {})
+            datos = json.loads(
+                ARCHIVO_DATOS.read_text(encoding="utf-8")
+            )
+
             inventario.update({
                 producto: int(cantidad)
-                for producto, cantidad in inventario_guardado.items()
+                for producto, cantidad
+                in datos.get("inventario", {}).items()
             })
+
             ventas = datos.get("ventas", [])
             movimientos = datos.get("movimientos", [])
             gastos = datos.get("gastos", [])
             anulaciones = datos.get("anulaciones", [])
+
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             st.error(
-                "No se pudo leer datos_pos.json. "
-                "Haz una copia del archivo antes de modificarlo."
+                "No se pudo leer el archivo de datos. "
+                "Realiza una copia de datos_pos.json antes de modificarlo."
             )
 
     st.session_state.inventario = inventario
@@ -397,15 +428,18 @@ def crear_receta(categoria, sabor, presentacion, toppings_adicionales):
 
 def calcular_faltantes(receta, cantidad):
     faltantes = {}
+
     for producto, unidades in receta.items():
         requerido = unidades * cantidad
         disponible = st.session_state.inventario.get(producto, 0)
+
         if disponible < requerido:
             faltantes[producto] = {
                 "Requerido": requerido,
                 "Disponible": disponible,
                 "Faltan": requerido - disponible,
             }
+
     return faltantes
 
 
@@ -427,7 +461,7 @@ def ventas_vigentes():
 
 
 # =========================================================
-# ENCABEZADO
+# ENCABEZADO Y PESTAÑAS
 # =========================================================
 st.title("🍧 Granizados PL - Punto de Venta")
 st.subheader("El sabor que nos une")
@@ -443,7 +477,7 @@ pestanas = st.tabs([
 ])
 
 # =========================================================
-# PESTAÑA 1: VENTAS
+# 1. REGISTRAR VENTAS
 # =========================================================
 with pestanas[0]:
     st.header("Registrar nueva venta")
@@ -486,9 +520,8 @@ with pestanas[0]:
                 MEDIOS_PAGO,
             )
 
-        st.markdown("**Toppings adicionales**")
         toppings_seleccionados = st.multiselect(
-            "Selecciona los toppings extra solicitados",
+            "Toppings adicionales",
             list(TOPPINGS.keys()),
             help=(
                 "Los toppings incluidos por categoría se descuentan "
@@ -496,24 +529,22 @@ with pestanas[0]:
             ),
         )
 
-        toppings_adicionales = [
-            TOPPINGS[nombre] for nombre in toppings_seleccionados
-        ]
-
         nombre_cliente = st.text_input(
             "Cliente (opcional)",
             placeholder="Cliente general",
         )
 
-        observacion = st.text_input(
-            "Observación (opcional)",
-        )
+        observacion = st.text_input("Observación (opcional)")
 
         precio_unitario = MENU[categoria]["precio"]
         total_venta = precio_unitario * int(cantidad)
 
         st.markdown(f"### Total de la venta: {pesos(total_venta)}")
         st.write(f"Precio por unidad: {pesos(precio_unitario)}")
+
+        toppings_adicionales = [
+            TOPPINGS[nombre] for nombre in toppings_seleccionados
+        ]
 
         receta = crear_receta(
             categoria,
@@ -522,19 +553,19 @@ with pestanas[0]:
             toppings_adicionales,
         )
 
-        with st.expander("Consultar ingredientes y consumo de inventario"):
-            detalle_receta = []
-            for producto, unidades in receta.items():
-                detalle_receta.append({
-                    "Producto": producto,
-                    "Por granizado": unidades,
-                    "Requerido": unidades * int(cantidad),
-                    "Existencias": st.session_state.inventario.get(
-                        producto, 0
-                    ),
-                })
+        with st.expander("Ver consumo de inventario"):
             st.dataframe(
-                pd.DataFrame(detalle_receta),
+                pd.DataFrame([
+                    {
+                        "Producto": producto,
+                        "Por granizado": unidades,
+                        "Total requerido": unidades * int(cantidad),
+                        "Existencias": st.session_state.inventario.get(
+                            producto, 0
+                        ),
+                    }
+                    for producto, unidades in receta.items()
+                ]),
                 hide_index=True,
                 use_container_width=True,
             )
@@ -543,8 +574,8 @@ with pestanas[0]:
 
         if faltantes:
             st.warning(
-                "No se puede registrar la venta porque faltan existencias. "
-                "Reabastece los productos desde la pestaña Inventario."
+                "No hay existencias suficientes. "
+                "Reabastece los productos antes de registrar la venta."
             )
             st.dataframe(
                 pd.DataFrame([
@@ -555,7 +586,7 @@ with pestanas[0]:
                 use_container_width=True,
             )
         else:
-            st.success("Hay existencias suficientes para esta venta.")
+            st.success("Hay existencias suficientes.")
 
         if st.button(
             "✅ Registrar venta",
@@ -599,14 +630,13 @@ with pestanas[0]:
 
             st.session_state.ventas.append(venta)
             guardar_datos()
-
             st.success(
-                f"Venta registrada correctamente por {pesos(total_venta)}."
+                f"Venta registrada por {pesos(total_venta)}."
             )
             st.rerun()
 
     st.divider()
-    st.subheader("Resumen de ventas de hoy")
+    st.subheader("Resumen de hoy")
 
     fecha_hoy = date.today().isoformat()
     ventas_hoy = [
@@ -626,19 +656,30 @@ with pestanas[0]:
     )
 
 # =========================================================
-# PESTAÑA 2: INVENTARIO
+# 2. INVENTARIO, REABASTECIMIENTO Y CORRECCIONES
 # =========================================================
 with pestanas[1]:
     st.header("Inventario y reabastecimiento")
+
     st.info(
-        "El inventario comienza en cero. Agrega manualmente las cantidades "
-        "que ingresen al negocio. Los cambios se guardan automáticamente."
+        "Agrega las cantidades que ingresen físicamente al negocio. "
+        "Las existencias se guardan automáticamente."
     )
+
+    # ---------- REABASTECIMIENTO ----------
+    st.subheader("➕ Agregar existencias")
+
+    productos_disponibles = sorted([
+        producto
+        for producto in st.session_state.inventario.keys()
+        if producto not in PRODUCTOS_OCULTOS_REABASTECIMIENTO
+    ])
 
     with st.form("form_reabastecimiento"):
         producto_reponer = st.selectbox(
-            "Producto",
-            sorted(st.session_state.inventario.keys()),
+            "Producto a reabastecer",
+            productos_disponibles,
+            key="producto_reponer",
         )
 
         cantidad_reponer = st.number_input(
@@ -647,19 +688,20 @@ with pestanas[1]:
             max_value=10000,
             value=1,
             step=1,
+            key="cantidad_reponer",
         )
 
         detalle_reponer = st.text_input(
-            "Detalle",
+            "Detalle del ingreso",
             placeholder="Ej. compra a proveedor",
         )
 
-        enviar_reabastecimiento = st.form_submit_button(
-            "➕ Agregar existencias",
+        confirmar_reabastecimiento = st.form_submit_button(
+            "Guardar reabastecimiento",
             use_container_width=True,
         )
 
-    if enviar_reabastecimiento:
+    if confirmar_reabastecimiento:
         st.session_state.inventario[producto_reponer] += int(
             cantidad_reponer
         )
@@ -678,8 +720,14 @@ with pestanas[1]:
         )
         st.rerun()
 
-    st.subheader("Existencias actuales")
-    busqueda = st.text_input("Buscar producto")
+    # ---------- EXISTENCIAS ACTUALES ----------
+    st.divider()
+    st.subheader("📦 Existencias actuales")
+
+    busqueda = st.text_input(
+        "Buscar producto en inventario",
+        key="buscar_inventario",
+    )
 
     filas_inventario = [
         {
@@ -709,7 +757,88 @@ with pestanas[1]:
         mime="text/csv",
     )
 
-    with st.expander("Movimientos de inventario"):
+    # ---------- CORREGIR EXISTENCIAS ----------
+    st.divider()
+    st.subheader("✏️ Corregir una existencia")
+
+    st.warning(
+        "Esta opción reemplaza la cantidad registrada por la cantidad "
+        "real que tienes físicamente. No suma existencias."
+    )
+
+    productos_corregibles = sorted(
+        st.session_state.inventario.keys()
+    )
+
+    with st.form("form_corregir_existencia"):
+        producto_corregir = st.selectbox(
+            "Producto que deseas corregir",
+            productos_corregibles,
+            key="producto_corregir",
+        )
+
+        valor_actual = int(
+            st.session_state.inventario.get(producto_corregir, 0)
+        )
+
+        st.write(
+            f"Existencia registrada actualmente: **{valor_actual}**"
+        )
+
+        nueva_existencia = st.number_input(
+            "Nueva existencia correcta",
+            min_value=0,
+            max_value=1000000,
+            value=valor_actual,
+            step=1,
+            key="nueva_existencia_correcta",
+        )
+
+        motivo_correccion = st.text_input(
+            "Motivo de la corrección",
+            placeholder="Ej. error al digitar la cantidad",
+        )
+
+        confirmar_correccion = st.form_submit_button(
+            "Guardar corrección",
+            use_container_width=True,
+        )
+
+    if confirmar_correccion:
+        valor_anterior = int(
+            st.session_state.inventario.get(producto_corregir, 0)
+        )
+        valor_nuevo = int(nueva_existencia)
+
+        if valor_anterior == valor_nuevo:
+            st.info("La existencia no cambió.")
+        else:
+            diferencia = valor_nuevo - valor_anterior
+
+            st.session_state.inventario[producto_corregir] = valor_nuevo
+
+            registrar_movimiento(
+                "Corrección manual de inventario",
+                producto_corregir,
+                diferencia,
+                (
+                    f"Antes: {valor_anterior}; "
+                    f"después: {valor_nuevo}; "
+                    f"motivo: {motivo_correccion.strip() or 'No especificado'}"
+                ),
+            )
+
+            guardar_datos()
+            st.success(
+                f"Existencia corregida. Antes: {valor_anterior}; "
+                f"ahora: {valor_nuevo}."
+            )
+            st.rerun()
+
+    # ---------- MOVIMIENTOS ----------
+    st.divider()
+
+    with st.expander("Historial de movimientos de inventario"):
         if st.session_state.movimientos:
             st.dataframe(
                 pd.DataFrame(st.session_state.movimientos[::-1]),
@@ -717,10 +846,10 @@ with pestanas[1]:
                 use_container_width=True,
             )
         else:
-            st.info("Todavía no hay movimientos de inventario.")
+            st.info("Todavía no hay movimientos registrados.")
 
 # =========================================================
-# PESTAÑA 3: HISTORIAL Y ANULACIONES
+# 3. HISTORIAL DE VENTAS Y ANULACIONES
 # =========================================================
 with pestanas[2]:
     st.header("Historial de ventas")
@@ -766,36 +895,34 @@ with pestanas[2]:
 
             opciones = {
                 (
-                    f'{venta["ID"]} | {venta["Fecha"]} | '
-                    f'{venta["Sabor"]} | {pesos(venta["Total"])}'
-                ): venta["ID"]
-                for venta in vigentes
+                    f'{v["ID"]} | {v["Fecha"]} | '
+                    f'{v["Sabor"]} | {pesos(v["Total"])}'
+                ): v["ID"]
+                for v in vigentes
             }
 
             seleccion = st.selectbox(
-                "Venta que desea anular",
+                "Seleccionar venta",
                 list(opciones.keys()),
             )
 
             motivo = st.text_input("Motivo de anulación")
 
             if st.button(
-                "↩️ Anular venta y devolver inventario",
+                "↩️ Anular venta y devolver existencias",
                 use_container_width=True,
             ):
                 id_venta = opciones[seleccion]
 
-                venta_seleccionada = next(
-                    venta for venta in st.session_state.ventas
-                    if venta["ID"] == id_venta
+                venta = next(
+                    v for v in st.session_state.ventas
+                    if v["ID"] == id_venta
                 )
 
-                # Solo se puede anular una venta vigente.
-                # Así se evita devolver existencias dos veces.
-                if venta_seleccionada.get("Estado", "Vigente") != "Vigente":
+                if venta.get("Estado", "Vigente") != "Vigente":
                     st.error("Esta venta ya fue anulada.")
                 else:
-                    for producto, unidades in venta_seleccionada.get(
+                    for producto, unidades in venta.get(
                         "Consumos", {}
                     ).items():
                         st.session_state.inventario[producto] = (
@@ -810,27 +937,24 @@ with pestanas[2]:
                             id_venta,
                         )
 
-                    venta_seleccionada["Estado"] = "Anulada"
+                    venta["Estado"] = "Anulada"
 
                     st.session_state.anulaciones.append({
                         "Fecha": ahora(),
                         "ID venta": id_venta,
                         "Motivo": motivo.strip() or "Sin motivo indicado",
-                        "Total": venta_seleccionada["Total"],
+                        "Total": venta["Total"],
                     })
 
                     guardar_datos()
                     st.success(
-                        "Venta anulada y existencias devueltas al inventario."
+                        "Venta anulada y existencias devueltas."
                     )
                     st.rerun()
-        else:
-            st.info("No hay ventas vigentes para anular.")
-
     else:
-        st.info("Todavía no se han registrado ventas.")
+        st.info("Todavía no hay ventas registradas.")
 
-    with st.expander("Historial de anulaciones"):
+    with st.expander("Registro de anulaciones"):
         if st.session_state.anulaciones:
             st.dataframe(
                 pd.DataFrame(st.session_state.anulaciones[::-1]),
@@ -841,7 +965,7 @@ with pestanas[2]:
             st.info("No hay anulaciones registradas.")
 
 # =========================================================
-# PESTAÑA 4: CAJA Y GASTOS
+# 4. CAJA Y GASTOS
 # =========================================================
 with pestanas[3]:
     st.header("Caja y gastos")
@@ -861,10 +985,12 @@ with pestanas[3]:
     )
 
     gastos_totales = sum(
-        float(g["Valor"]) for g in st.session_state.gastos
+        float(g["Valor"])
+        for g in st.session_state.gastos
     )
 
     col1, col2, col3, col4 = st.columns(4)
+
     col1.metric("Ventas en efectivo", pesos(efectivo))
     col2.metric("Transferencias", pesos(transferencias))
     col3.metric("Gastos registrados", pesos(gastos_totales))
@@ -879,7 +1005,7 @@ with pestanas[3]:
     with st.form("form_gasto"):
         concepto = st.text_input(
             "Concepto",
-            placeholder="Ej. hielo, transporte o compra de insumos",
+            placeholder="Ej. compra de hielo o transporte",
         )
 
         valor = st.number_input(
@@ -895,7 +1021,7 @@ with pestanas[3]:
             MEDIOS_PAGO,
         )
 
-        detalle_gasto = st.text_input("Detalle adicional (opcional)")
+        detalle_gasto = st.text_input("Detalle adicional")
 
         guardar_gasto = st.form_submit_button(
             "💾 Guardar gasto",
@@ -917,7 +1043,7 @@ with pestanas[3]:
             })
 
             guardar_datos()
-            st.success("Gasto guardado correctamente.")
+            st.success("Gasto guardado.")
             st.rerun()
 
     st.subheader("Gastos registrados")
@@ -929,9 +1055,9 @@ with pestanas[3]:
             use_container_width=True,
         )
 
-        gastos_csv = pd.DataFrame(st.session_state.gastos).to_csv(
-            index=False
-        ).encode("utf-8-sig")
+        gastos_csv = pd.DataFrame(
+            st.session_state.gastos
+        ).to_csv(index=False).encode("utf-8-sig")
 
         st.download_button(
             "⬇️ Descargar gastos CSV",
@@ -943,7 +1069,7 @@ with pestanas[3]:
         st.info("Todavía no hay gastos registrados.")
 
 # =========================================================
-# PESTAÑA 5: REPORTES
+# 5. REPORTES
 # =========================================================
 with pestanas[4]:
     st.header("Reportes de ventas")
@@ -991,6 +1117,7 @@ with pestanas[4]:
             )
 
             col_a, col_b, col_c = st.columns(3)
+
             col_a.metric("Número de ventas", len(df_periodo))
             col_b.metric("Unidades vendidas", unidades_periodo)
             col_c.metric("Ingresos", pesos(total_periodo))
@@ -1046,7 +1173,7 @@ with pestanas[4]:
                 )
             else:
                 st.info(
-                    "No hay ventas vigentes para el periodo seleccionado."
+                    "No hay ventas vigentes en el periodo seleccionado."
                 )
     else:
         st.info("Registra ventas para generar reportes.")
