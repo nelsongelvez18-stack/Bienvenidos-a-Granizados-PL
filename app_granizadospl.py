@@ -2,21 +2,40 @@
 import json
 from pathlib import Path
 from datetime import datetime, date
+from collections import Counter
 
 import pandas as pd
 import streamlit as st
 
 # =========================================================
-# CONFIGURACION GENERAL
+# CONFIGURACIÓN
 # =========================================================
 st.set_page_config(
-    page_title="POS Granizados PL",
+    page_title="Granizados PL - Punto de Venta",
     page_icon="🍧",
-    layout="wide"
+    layout="wide",
 )
 
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+h1, h2, h3 {
+    font-weight: 800;
+}
+div.stButton > button {
+    font-weight: bold;
+    min-height: 2.7rem;
+}
+div[data-testid="stMetricValue"] {
+    font-size: 1.6rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 CARPETA_DATOS = Path(__file__).resolve().parent / "datos_granizados_pl"
-CARPETA_DATOS.mkdir(parents=True, exist_ok=True)
 ARCHIVO_DATOS = CARPETA_DATOS / "datos_pos.json"
 
 MEDIOS_PAGO = [
@@ -24,17 +43,39 @@ MEDIOS_PAGO = [
     "Transferencia Nequi / Billeteras virtuales"
 ]
 
+PRESENTACIONES = ["Vaso 12 oz", "Sachet 12 oz"]
+
 # =========================================================
-# INVENTARIO INICIAL: TODOS LOS PRODUCTOS EN CERO
+# TOPPINGS
+# =========================================================
+TOPPINGS = {
+    "Minichicles": "Topping Minichicles (porción)",
+    "Goma bandera": "Topping Goma bandera (porción)",
+    "Bombón": "Topping Bombón (und)",
+    "Sal pimienta": "Topping Sal pimienta (porción)",
+    "Bolas de chicle": "Topping Bolas de chicle (porción)",
+    "Goma gusano": "Topping Goma gusano (porción)",
+    "Goma splash": "Topping Goma splash (porción)",
+}
+
+# =========================================================
+# INVENTARIO INICIAL: TODO EN CERO
 # =========================================================
 INVENTARIO_BASE = {
     "Vaso 12 oz (und)": 0,
     "Sachet 12 oz (und)": 0,
     "Pitillos (und)": 0,
     "Bolsa de papel (und)": 0,
-    "Toppings de dulces (porción)": 0,
     "Barquillo (und)": 0,
     "Lluvia de chocolate (porción)": 0,
+
+    "Topping Minichicles (porción)": 0,
+    "Topping Goma bandera (porción)": 0,
+    "Topping Bombón (und)": 0,
+    "Topping Sal pimienta (porción)": 0,
+    "Topping Bolas de chicle (porción)": 0,
+    "Topping Goma gusano (porción)": 0,
+    "Topping Goma splash (porción)": 0,
 
     "Ron Blanco (copa)": 0,
     "Tequila (copa)": 0,
@@ -43,1015 +84,978 @@ INVENTARIO_BASE = {
     "Aguardiente (copa)": 0,
     "Champaña (copa)": 0,
     "Baileys (copa)": 0,
-
-    "Sabor Bombombum": 0,
-    "Sabor Limonada de Coco": 0,
-    "Sabor Limonada de Sandía": 0,
-    "Sabor Manzana Verde": 0,
-    "Sabor Maracululo": 0,
-    "Sabor Maracupíña": 0,
-    "Sabor Piña Naranja": 0,
-    "Sabor Uva": 0,
-
-    "Sabor Agave Ice": 0,
-    "Sabor Andromeda Ice": 0,
-    "Sabor Bon Bon Bum Ice": 0,
-    "Sabor Candy Ice": 0,
-    "Sabor Cherryboom Ice": 0,
-    "Sabor Cosmico Ice": 0,
-    "Sabor Estelar Ice": 0,
-    "Sabor Fresa Salvaje Ice": 0,
-    "Sabor Fourloko Ice": 0,
-    "Sabor Interestelar Ice": 0,
-    "Sabor Luxury Ice": 0,
-    "Sabor Mango Explosivo Ice": 0,
-    "Sabor Miami Ice": 0,
-    "Sabor Monaco Ice": 0,
-    "Sabor Mora Azul Ice": 0,
-    "Sabor Nebula Ice": 0,
-    "Sabor Orion Ice": 0,
-    "Sabor Smirnoff Lulo Ice": 0,
-    "Sabor Smirnoff Limon Ice": 0,
-    "Sabor Tropical Caribeña Ice": 0,
-    "Sabor Velvet Ice": 0,
-
-    "Sabor Bayleys": 0,
-    "Sabor Coco Loco": 0,
-    "Sabor Piña Colada": 0
 }
 
+SABORES_INVENTARIO = [
+    "Bombombum", "Chicle", "Frutos Rojos",
+    "Limonada Cerezada", "Limonada de Coco",
+    "Limonada de Sandía", "Mango Biche",
+    "Manzana Rosada", "Manzana Verde",
+    "Maracumango", "Maracululo", "Maracupiña",
+    "Mora Azul", "Uva",
+
+    "Agave Ice", "Andromeda Ice", "Bon Bon Bum Ice",
+    "Candy Ice", "Cherryboom Ice", "Cosmico Ice",
+    "Estelar Ice", "Fresa Salvaje Ice", "Fourloko Ice",
+    "Interestelar Ice", "Luxury Ice", "Mango Explosivo Ice",
+    "Miami Ice", "Monaco Ice", "Nebula Ice", "Orion Ice",
+    "Smirnoff Lulo Ice", "Smirnoff Limon Ice",
+    "Tropical Caribeña Ice", "Velvet Ice",
+
+    "Bayleys", "Coco Loco", "Piña Colada",
+]
+
+for sabor_inventario in SABORES_INVENTARIO:
+    nombre = "Sabor " + sabor_inventario
+    # Se mantiene el nombre de bodega escrito correctamente.
+    if sabor_inventario == "Maracupiña":
+        nombre = "Sabor Maracupíña"
+    INVENTARIO_BASE[nombre] = 0
+
 # =========================================================
-# MENU, PRECIOS Y RECETAS
-# Cada ingrediente consume una unidad por granizado.
-# Ajustar las recetas si las cantidades reales son distintas.
+# CARTA Y RECETAS
 # =========================================================
 MENU = {
-    "SIN ALCOHOL (12 oz)": {
+    "SIN ALCOHOL": {
         "precio": 13000,
-        "toppings": ["Toppings de dulces (porción)"],
+        "toppings_base": [
+            "Topping Minichicles (porción)",
+            "Topping Goma bandera (porción)",
+            "Topping Goma gusano (porción)",
+        ],
         "sabores": {
             "Bombombum": {
                 "bodega": "Sabor Bombombum",
-                "insumos": []
+                "insumos": ["Topping Bombón (und)"],
+            },
+            "Chicle": {
+                "bodega": "Sabor Chicle",
+                "insumos": ["Topping Bolas de chicle (porción)"],
+            },
+            "Frutos Rojos": {
+                "bodega": "Sabor Frutos Rojos",
+                "insumos": [],
+            },
+            "Limonada Cerezada": {
+                "bodega": "Sabor Limonada Cerezada",
+                "insumos": [],
             },
             "Limonada de Coco": {
                 "bodega": "Sabor Limonada de Coco",
-                "insumos": []
+                "insumos": [],
             },
             "Limonada de Sandía": {
                 "bodega": "Sabor Limonada de Sandía",
-                "insumos": []
+                "insumos": [],
+            },
+            "Mango Biche": {
+                "bodega": "Sabor Mango Biche",
+                "insumos": ["Topping Sal pimienta (porción)"],
+            },
+            "Manzana Rosada": {
+                "bodega": "Sabor Manzana Rosada",
+                "insumos": [],
             },
             "Manzana Verde": {
                 "bodega": "Sabor Manzana Verde",
-                "insumos": []
+                "insumos": [],
+            },
+            "Maracumango": {
+                "bodega": "Sabor Maracumango",
+                "insumos": [],
             },
             "Maracululo": {
                 "bodega": "Sabor Maracululo",
-                "insumos": []
+                "insumos": [],
             },
-            "Maracupíña": {
+            "Maracupiña": {
                 "bodega": "Sabor Maracupíña",
-                "insumos": []
+                "insumos": [],
             },
-            "Piña Naranja": {
-                "bodega": "Sabor Piña Naranja",
-                "insumos": []
+            "Mora Azul": {
+                "bodega": "Sabor Mora Azul",
+                "insumos": [],
             },
             "Uva": {
                 "bodega": "Sabor Uva",
-                "insumos": []
-            }
-        }
+                "insumos": [],
+            },
+        },
     },
 
-    "CON ALCOHOL (12 oz)": {
+    "CON ALCOHOL": {
         "precio": 15000,
-        "toppings": ["Toppings de dulces (porción)"],
+        "toppings_base": [
+            "Topping Goma gusano (porción)",
+            "Topping Goma splash (porción)",
+        ],
         "sabores": {
             "Agave Ice": {
                 "bodega": "Sabor Agave Ice",
-                "insumos": ["Ron Blanco (copa)", "Tequila (copa)"]
+                "insumos": ["Ron Blanco (copa)", "Tequila (copa)"],
             },
             "Andromeda Ice": {
                 "bodega": "Sabor Andromeda Ice",
-                "insumos": ["Vodka (copa)", "Tequila (copa)"]
+                "insumos": ["Vodka (copa)", "Tequila (copa)"],
             },
             "Bon Bon Bum Ice": {
                 "bodega": "Sabor Bon Bon Bum Ice",
-                "insumos": ["Whisky (copa)"]
+                "insumos": ["Whisky (copa)", "Topping Bombón (und)"],
             },
             "Candy Ice": {
                 "bodega": "Sabor Candy Ice",
-                "insumos": ["Ron Blanco (copa)", "Vodka (copa)"]
+                "insumos": ["Ron Blanco (copa)", "Vodka (copa)"],
             },
             "Cherryboom Ice": {
                 "bodega": "Sabor Cherryboom Ice",
-                "insumos": ["Ron Blanco (copa)", "Whisky (copa)"]
+                "insumos": ["Ron Blanco (copa)", "Whisky (copa)"],
             },
             "Cosmico Ice": {
                 "bodega": "Sabor Cosmico Ice",
-                "insumos": ["Vodka (copa)", "Champaña (copa)"]
+                "insumos": ["Vodka (copa)", "Champaña (copa)"],
             },
             "Estelar Ice": {
                 "bodega": "Sabor Estelar Ice",
-                "insumos": ["Aguardiente (copa)"]
+                "insumos": ["Aguardiente (copa)"],
             },
             "Fresa Salvaje Ice": {
                 "bodega": "Sabor Fresa Salvaje Ice",
-                "insumos": ["Tequila (copa)"]
+                "insumos": ["Tequila (copa)"],
             },
             "Fourloko Ice": {
                 "bodega": "Sabor Fourloko Ice",
-                "insumos": ["Vodka (copa)"]
+                "insumos": ["Vodka (copa)"],
             },
             "Interestelar Ice": {
                 "bodega": "Sabor Interestelar Ice",
-                "insumos": ["Tequila (copa)"]
+                "insumos": ["Tequila (copa)"],
             },
             "Luxury Ice": {
                 "bodega": "Sabor Luxury Ice",
-                "insumos": ["Vodka (copa)"]
+                "insumos": ["Vodka (copa)"],
             },
             "Mango Explosivo Ice": {
                 "bodega": "Sabor Mango Explosivo Ice",
-                "insumos": ["Tequila (copa)", "Vodka (copa)"]
+                "insumos": [
+                    "Tequila (copa)",
+                    "Vodka (copa)",
+                    "Topping Sal pimienta (porción)",
+                ],
             },
             "Miami Ice": {
                 "bodega": "Sabor Miami Ice",
-                "insumos": ["Tequila (copa)"]
+                "insumos": ["Tequila (copa)"],
             },
             "Monaco Ice": {
                 "bodega": "Sabor Monaco Ice",
-                "insumos": ["Whisky (copa)"]
+                "insumos": ["Whisky (copa)"],
             },
             "Mora Azul Ice": {
                 "bodega": "Sabor Mora Azul Ice",
-                "insumos": ["Whisky (copa)"]
+                "insumos": ["Whisky (copa)"],
             },
             "Nebula Ice": {
                 "bodega": "Sabor Nebula Ice",
-                "insumos": ["Vodka (copa)", "Whisky (copa)"]
+                "insumos": ["Vodka (copa)", "Whisky (copa)"],
             },
             "Orion Ice": {
                 "bodega": "Sabor Orion Ice",
-                "insumos": ["Vodka (copa)"]
+                "insumos": ["Vodka (copa)"],
             },
             "Smirnoff Lulo Ice": {
                 "bodega": "Sabor Smirnoff Lulo Ice",
-                "insumos": ["Vodka (copa)"]
+                "insumos": ["Vodka (copa)"],
             },
             "Smirnoff Limon Ice": {
                 "bodega": "Sabor Smirnoff Limon Ice",
-                "insumos": ["Vodka (copa)"]
+                "insumos": ["Vodka (copa)"],
             },
             "Tropical Caribeña Ice": {
                 "bodega": "Sabor Tropical Caribeña Ice",
-                "insumos": ["Tequila (copa)", "Vodka (copa)"]
+                "insumos": ["Tequila (copa)", "Vodka (copa)"],
             },
             "Velvet Ice": {
                 "bodega": "Sabor Velvet Ice",
-                "insumos": ["Vodka (copa)", "Champaña (copa)"]
-            }
-        }
+                "insumos": ["Vodka (copa)", "Champaña (copa)"],
+            },
+        },
     },
 
-    "CREMOSA CON ALCOHOL (12 oz)": {
-        "precio": 16000,
-        "toppings": [
+    "CREMOSOS": {
+        "precio": 15000,
+        "toppings_base": [
             "Barquillo (und)",
-            "Lluvia de chocolate (porción)"
+            "Lluvia de chocolate (porción)",
         ],
         "sabores": {
             "Bayleys": {
                 "bodega": "Sabor Bayleys",
-                "insumos": ["Baileys (copa)", "Whisky (copa)"]
+                "insumos": ["Baileys (copa)", "Whisky (copa)"],
             },
             "Coco Loco": {
                 "bodega": "Sabor Coco Loco",
-                "insumos": ["Ron Blanco (copa)"]
+                "insumos": ["Ron Blanco (copa)"],
             },
             "Piña Colada": {
                 "bodega": "Sabor Piña Colada",
-                "insumos": ["Ron Blanco (copa)"]
-            }
-        }
-    }
+                "insumos": ["Ron Blanco (copa)"],
+            },
+        },
+    },
 }
 
-
 # =========================================================
-# FUNCIONES AUXILIARES
+# FUNCIONES
 # =========================================================
 def ahora():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def pesos(valor):
-    return "$" + f"{int(valor):,}".replace(",", ".") + " COP"
+    return "$" + f"{int(valor):,}".replace(",", ".")
 
 
 def guardar_datos():
+    CARPETA_DATOS.mkdir(parents=True, exist_ok=True)
     datos = {
         "inventario": st.session_state.inventario,
         "ventas": st.session_state.ventas,
         "movimientos": st.session_state.movimientos,
         "gastos": st.session_state.gastos,
-        "anulaciones": st.session_state.anulaciones
+        "anulaciones": st.session_state.anulaciones,
     }
-
-    temporal = ARCHIVO_DATOS.with_suffix(".tmp")
-    temporal.write_text(
+    archivo_temporal = ARCHIVO_DATOS.with_suffix(".tmp")
+    archivo_temporal.write_text(
         json.dumps(datos, ensure_ascii=False, indent=2),
-        encoding="utf-8"
+        encoding="utf-8",
     )
-    temporal.replace(ARCHIVO_DATOS)
+    archivo_temporal.replace(ARCHIVO_DATOS)
 
 
 def cargar_datos():
+    # Agrega nuevos productos sin borrar las existencias ya guardadas.
+    inventario = INVENTARIO_BASE.copy()
+    ventas = []
+    movimientos = []
+    gastos = []
+    anulaciones = []
+
     if ARCHIVO_DATOS.exists():
         try:
-            datos = json.loads(
-                ARCHIVO_DATOS.read_text(encoding="utf-8")
-            )
-
-            inventario = INVENTARIO_BASE.copy()
+            datos = json.loads(ARCHIVO_DATOS.read_text(encoding="utf-8"))
+            inventario_guardado = datos.get("inventario", {})
             inventario.update({
-                nombre: int(cantidad)
-                for nombre, cantidad in datos.get(
-                    "inventario", {}
-                ).items()
+                producto: int(cantidad)
+                for producto, cantidad in inventario_guardado.items()
             })
-
-            return {
-                "inventario": inventario,
-                "ventas": datos.get("ventas", []),
-                "movimientos": datos.get("movimientos", []),
-                "gastos": datos.get("gastos", []),
-                "anulaciones": datos.get("anulaciones", [])
-            }
-
-        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            ventas = datos.get("ventas", [])
+            movimientos = datos.get("movimientos", [])
+            gastos = datos.get("gastos", [])
+            anulaciones = datos.get("anulaciones", [])
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
             st.error(
-                "No se pudo leer el archivo de datos. "
-                "Revise el archivo JSON y conserve una copia antes "
-                "de continuar."
+                "No se pudo leer datos_pos.json. "
+                "Haz una copia del archivo antes de modificarlo."
             )
 
-    return {
-        "inventario": INVENTARIO_BASE.copy(),
-        "ventas": [],
-        "movimientos": [],
-        "gastos": [],
-        "anulaciones": []
-    }
+    st.session_state.inventario = inventario
+    st.session_state.ventas = ventas
+    st.session_state.movimientos = movimientos
+    st.session_state.gastos = gastos
+    st.session_state.anulaciones = anulaciones
 
 
-def registrar_movimiento(tipo, producto, cantidad, detalle=""):
+if "inventario" not in st.session_state:
+    cargar_datos()
+
+
+def crear_receta(categoria, sabor, presentacion, toppings_adicionales):
+    receta = Counter()
+    datos_sabor = MENU[categoria]["sabores"][sabor]
+
+    receta[datos_sabor["bodega"]] += 1
+
+    for insumo in datos_sabor["insumos"]:
+        receta[insumo] += 1
+
+    for topping in MENU[categoria]["toppings_base"]:
+        receta[topping] += 1
+
+    for topping in toppings_adicionales:
+        receta[topping] += 1
+
+    if presentacion == "Vaso 12 oz":
+        receta["Vaso 12 oz (und)"] += 1
+    else:
+        receta["Sachet 12 oz (und)"] += 1
+
+    receta["Pitillos (und)"] += 1
+    receta["Bolsa de papel (und)"] += 1
+
+    return dict(receta)
+
+
+def calcular_faltantes(receta, cantidad):
+    faltantes = {}
+    for producto, unidades in receta.items():
+        requerido = unidades * cantidad
+        disponible = st.session_state.inventario.get(producto, 0)
+        if disponible < requerido:
+            faltantes[producto] = {
+                "Requerido": requerido,
+                "Disponible": disponible,
+                "Faltan": requerido - disponible,
+            }
+    return faltantes
+
+
+def registrar_movimiento(tipo, producto, cantidad, detalle):
     st.session_state.movimientos.append({
-        "Fecha y hora": ahora(),
+        "Fecha": ahora(),
         "Tipo": tipo,
         "Producto": producto,
         "Cantidad": int(cantidad),
-        "Detalle": detalle
+        "Detalle": detalle,
     })
 
 
-def construir_receta(categoria, sabor, presentacion, cantidad):
-    config = MENU[categoria]
-    info = config["sabores"][sabor]
-
-    empaque = (
-        "Vaso 12 oz (und)"
-        if presentacion == "Vaso"
-        else "Sachet 12 oz (und)"
-    )
-
-    receta = {
-        empaque: cantidad,
-        "Pitillos (und)": cantidad,
-        "Bolsa de papel (und)": cantidad,
-        info["bodega"]: cantidad
-    }
-
-    for topping in config["toppings"]:
-        receta[topping] = receta.get(topping, 0) + cantidad
-
-    for licor in info["insumos"]:
-        receta[licor] = receta.get(licor, 0) + cantidad
-
-    return receta
-
-
-def exportar_csv(datos):
-    return pd.DataFrame(datos).to_csv(
-        index=False
-    ).encode("utf-8-sig")
+def ventas_vigentes():
+    return [
+        venta for venta in st.session_state.ventas
+        if venta.get("Estado", "Vigente") == "Vigente"
+    ]
 
 
 # =========================================================
-# INICIALIZAR DATOS PERSISTENTES
+# ENCABEZADO
 # =========================================================
-if "inicializado" not in st.session_state:
-    datos = cargar_datos()
+st.title("🍧 Granizados PL - Punto de Venta")
+st.subheader("El sabor que nos une")
+st.caption("📍 Túquerres, Nariño")
+st.divider()
 
-    for clave, valor in datos.items():
-        st.session_state[clave] = valor
-
-    st.session_state.inicializado = True
-
-
-# =========================================================
-# ESTILOS Y ENCABEZADO
-# =========================================================
-st.markdown("""
-<style>
-h1 {
-    text-align: center;
-    color: #ff4b4b;
-    font-weight: 800;
-}
-[data-testid="stMetricValue"] {
-    font-size: 1.7rem;
-}
-div.stButton > button,
-div[data-testid="stFormSubmitButton"] button {
-    font-weight: bold;
-    border-radius: 9px;
-    padding: 0.55rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🍧 Granizados PL — Punto de Venta")
-st.caption("📍 Túquerres, Nariño | El sabor que nos une")
-st.info(
-    "El inventario comienza en cero. Registre las entradas "
-    "en la pestaña Inventario antes de vender. "
-    "Los datos se guardan localmente en un archivo JSON."
-)
-
-tab_ventas, tab_inventario, tab_historial, tab_caja, tab_reportes = st.tabs([
+pestanas = st.tabs([
     "🛍️ Ventas",
     "📦 Inventario",
-    "🧾 Historial",
-    "💵 Caja",
-    "📊 Reportes"
+    "📋 Historial",
+    "💵 Caja y gastos",
+    "📊 Reportes",
 ])
-
 
 # =========================================================
 # PESTAÑA 1: VENTAS
 # =========================================================
-with tab_ventas:
-    st.header("Registrar venta")
+with pestanas[0]:
+    st.header("Registrar nueva venta")
 
-    with st.form("formulario_venta"):
-        categoria = st.selectbox(
-            "1. Categoría",
-            list(MENU.keys())
+    with st.container(border=True):
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            categoria = st.selectbox(
+                "Categoría",
+                list(MENU.keys()),
+            )
+
+        with col2:
+            sabor = st.selectbox(
+                "Sabor",
+                list(MENU[categoria]["sabores"].keys()),
+            )
+
+        with col3:
+            cantidad = st.number_input(
+                "Cantidad de granizados",
+                min_value=1,
+                max_value=50,
+                value=1,
+                step=1,
+            )
+
+        col4, col5 = st.columns(2)
+
+        with col4:
+            presentacion = st.selectbox(
+                "Presentación",
+                PRESENTACIONES,
+            )
+
+        with col5:
+            medio_pago = st.selectbox(
+                "Medio de pago",
+                MEDIOS_PAGO,
+            )
+
+        st.markdown("**Toppings adicionales**")
+        toppings_seleccionados = st.multiselect(
+            "Selecciona los toppings extra solicitados",
+            list(TOPPINGS.keys()),
+            help=(
+                "Los toppings incluidos por categoría se descuentan "
+                "automáticamente. Esta selección agrega toppings extra."
+            ),
         )
 
-        sabor = st.selectbox(
-            "2. Sabor",
-            list(MENU[categoria]["sabores"].keys())
+        toppings_adicionales = [
+            TOPPINGS[nombre] for nombre in toppings_seleccionados
+        ]
+
+        nombre_cliente = st.text_input(
+            "Cliente (opcional)",
+            placeholder="Cliente general",
         )
 
-        presentacion = st.radio(
-            "3. Presentación",
-            ["Vaso", "Sachet"],
-            horizontal=True
-        )
-
-        medio_pago = st.selectbox(
-            "4. Medio de pago",
-            MEDIOS_PAGO
-        )
-
-        cantidad = st.number_input(
-            "5. Cantidad de unidades",
-            min_value=1,
-            max_value=100,
-            value=1,
-            step=1
+        observacion = st.text_input(
+            "Observación (opcional)",
         )
 
         precio_unitario = MENU[categoria]["precio"]
-        total = precio_unitario * int(cantidad)
+        total_venta = precio_unitario * int(cantidad)
 
-        st.markdown(
-            f"**Precio unitario:** {pesos(precio_unitario)}"
-        )
-        st.markdown(f"**Total de la venta:** {pesos(total)}")
+        st.markdown(f"### Total de la venta: {pesos(total_venta)}")
+        st.write(f"Precio por unidad: {pesos(precio_unitario)}")
 
-        confirmar = st.form_submit_button(
-            "🚀 REGISTRAR VENTA",
-            use_container_width=True
-        )
-
-    if confirmar:
-        receta = construir_receta(
+        receta = crear_receta(
             categoria,
             sabor,
             presentacion,
-            int(cantidad)
+            toppings_adicionales,
         )
 
-        faltantes = []
-
-        for producto, necesario in receta.items():
-            disponible = st.session_state.inventario.get(
-                producto, 0
+        with st.expander("Consultar ingredientes y consumo de inventario"):
+            detalle_receta = []
+            for producto, unidades in receta.items():
+                detalle_receta.append({
+                    "Producto": producto,
+                    "Por granizado": unidades,
+                    "Requerido": unidades * int(cantidad),
+                    "Existencias": st.session_state.inventario.get(
+                        producto, 0
+                    ),
+                })
+            st.dataframe(
+                pd.DataFrame(detalle_receta),
+                hide_index=True,
+                use_container_width=True,
             )
 
-            if disponible < necesario:
-                faltantes.append(
-                    f"{producto}: disponibles {disponible}, "
-                    f"necesarios {necesario}"
-                )
+        faltantes = calcular_faltantes(receta, int(cantidad))
 
         if faltantes:
-            st.error(
-                "Inventario insuficiente. No se registró la venta."
+            st.warning(
+                "No se puede registrar la venta porque faltan existencias. "
+                "Reabastece los productos desde la pestaña Inventario."
             )
-
-            for falta in faltantes:
-                st.write(f"- {falta}")
-
+            st.dataframe(
+                pd.DataFrame([
+                    {"Producto": producto, **detalle}
+                    for producto, detalle in faltantes.items()
+                ]),
+                hide_index=True,
+                use_container_width=True,
+            )
         else:
-            # Descontar todos los insumos de la receta.
-            for producto, unidades in receta.items():
-                st.session_state.inventario[producto] -= unidades
+            st.success("Hay existencias suficientes para esta venta.")
 
-            venta = {
-                "ID": "V" + datetime.now().strftime(
-                    "%Y%m%d%H%M%S%f"
-                ),
-                "Fecha y hora": ahora(),
-                "Categoría": categoria,
-                "Sabor": sabor,
-                "Presentación": presentacion,
-                "Cantidad": int(cantidad),
-                "Medio de pago": medio_pago,
-                "Precio unitario": precio_unitario,
-                "Total": total,
-                "Estado": "Vigente",
-                "Consumos": receta
+        if st.button(
+            "✅ Registrar venta",
+            type="primary",
+            use_container_width=True,
+            disabled=bool(faltantes),
+        ):
+            consumos = {
+                producto: unidades * int(cantidad)
+                for producto, unidades in receta.items()
             }
 
+            venta = {
+                "ID": "V-" + datetime.now().strftime("%Y%m%d%H%M%S%f"),
+                "Fecha": ahora(),
+                "Cliente": nombre_cliente.strip() or "Cliente general",
+                "Categoria": categoria,
+                "Sabor": sabor,
+                "Presentacion": presentacion,
+                "Cantidad": int(cantidad),
+                "Precio unitario": precio_unitario,
+                "Total": total_venta,
+                "Medio de pago": medio_pago,
+                "Toppings adicionales": (
+                    ", ".join(toppings_seleccionados)
+                    if toppings_seleccionados else "Ninguno"
+                ),
+                "Observacion": observacion.strip(),
+                "Estado": "Vigente",
+                "Consumos": consumos,
+            }
+
+            for producto, unidades in consumos.items():
+                st.session_state.inventario[producto] -= unidades
+                registrar_movimiento(
+                    "Salida por venta",
+                    producto,
+                    unidades,
+                    venta["ID"],
+                )
+
             st.session_state.ventas.append(venta)
-
-            registrar_movimiento(
-                "Salida por venta",
-                sabor,
-                cantidad,
-                f"Venta {venta['ID']}"
-            )
-
             guardar_datos()
 
             st.success(
-                f"Venta registrada correctamente. Total: {pesos(total)}"
+                f"Venta registrada correctamente por {pesos(total_venta)}."
             )
             st.rerun()
 
     st.divider()
-    st.subheader("Resumen del día")
+    st.subheader("Resumen de ventas de hoy")
 
-    hoy = date.today().isoformat()
-
+    fecha_hoy = date.today().isoformat()
     ventas_hoy = [
-        v for v in st.session_state.ventas
-        if v["Fecha y hora"].startswith(hoy)
-        and v["Estado"] == "Vigente"
+        venta for venta in ventas_vigentes()
+        if venta.get("Fecha", "").startswith(fecha_hoy)
     ]
 
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Ventas", len(ventas_hoy))
-    col2.metric(
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("Número de ventas", len(ventas_hoy))
+    col_b.metric(
         "Unidades vendidas",
-        sum(v["Cantidad"] for v in ventas_hoy)
+        sum(int(v["Cantidad"]) for v in ventas_hoy),
     )
-    col3.metric(
-        "Ingresos",
-        pesos(sum(v["Total"] for v in ventas_hoy))
+    col_c.metric(
+        "Total vendido",
+        pesos(sum(float(v["Total"]) for v in ventas_hoy)),
     )
-
 
 # =========================================================
 # PESTAÑA 2: INVENTARIO
 # =========================================================
-with tab_inventario:
+with pestanas[1]:
     st.header("Inventario y reabastecimiento")
-
-    st.write(
-        "Seleccione el producto recibido e indique la cantidad "
-        "que desea agregar a las existencias."
+    st.info(
+        "El inventario comienza en cero. Agrega manualmente las cantidades "
+        "que ingresen al negocio. Los cambios se guardan automáticamente."
     )
 
-    with st.form("formulario_entrada"):
-        producto_entrada = st.selectbox(
-            "Producto o insumo",
-            list(st.session_state.inventario.keys())
+    with st.form("form_reabastecimiento"):
+        producto_reponer = st.selectbox(
+            "Producto",
+            sorted(st.session_state.inventario.keys()),
         )
 
-        cantidad_entrada = st.number_input(
-            "Cantidad recibida",
+        cantidad_reponer = st.number_input(
+            "Cantidad que ingresa",
             min_value=1,
-            max_value=100000,
+            max_value=10000,
             value=1,
-            step=1
+            step=1,
         )
 
-        referencia = st.text_input(
-            "Proveedor, factura o nota (opcional)"
+        detalle_reponer = st.text_input(
+            "Detalle",
+            placeholder="Ej. compra a proveedor",
         )
 
-        confirmar_entrada = st.form_submit_button(
-            "➕ REGISTRAR REABASTECIMIENTO",
-            use_container_width=True
+        enviar_reabastecimiento = st.form_submit_button(
+            "➕ Agregar existencias",
+            use_container_width=True,
         )
 
-    if confirmar_entrada:
-        st.session_state.inventario[producto_entrada] += int(
-            cantidad_entrada
+    if enviar_reabastecimiento:
+        st.session_state.inventario[producto_reponer] += int(
+            cantidad_reponer
         )
 
         registrar_movimiento(
             "Entrada / reabastecimiento",
-            producto_entrada,
-            cantidad_entrada,
-            referencia.strip() or "Entrada manual"
+            producto_reponer,
+            int(cantidad_reponer),
+            detalle_reponer.strip() or "Reabastecimiento manual",
         )
 
         guardar_datos()
-
         st.success(
-            f"Entrada registrada: {cantidad_entrada} unidades "
-            f"de {producto_entrada}."
+            f"Se agregaron {cantidad_reponer} unidades a "
+            f"{producto_reponer}."
         )
         st.rerun()
 
-    st.divider()
     st.subheader("Existencias actuales")
+    busqueda = st.text_input("Buscar producto")
 
-    busqueda = st.text_input(
-        "Buscar producto",
-        placeholder="Escriba el nombre del producto..."
-    )
-
-    inventario_tabla = []
-
-    for nombre, unidades in st.session_state.inventario.items():
-        if busqueda.lower() not in nombre.lower():
-            continue
-
-        if unidades == 0:
-            estado = "AGOTADO"
-        elif unidades <= 5:
-            estado = "EXISTENCIAS BAJAS"
-        else:
-            estado = "DISPONIBLE"
-
-        inventario_tabla.append({
-            "Producto": nombre,
-            "Existencias": unidades,
-            "Estado": estado
-        })
+    filas_inventario = [
+        {
+            "Producto": producto,
+            "Existencias": cantidad,
+        }
+        for producto, cantidad in sorted(
+            st.session_state.inventario.items()
+        )
+        if busqueda.lower() in producto.lower()
+    ]
 
     st.dataframe(
-        pd.DataFrame(inventario_tabla),
+        pd.DataFrame(filas_inventario),
+        hide_index=True,
         use_container_width=True,
-        hide_index=True
     )
 
-    agotados = sum(
-        unidades == 0
-        for unidades in st.session_state.inventario.values()
+    csv_inventario = pd.DataFrame(filas_inventario).to_csv(
+        index=False
+    ).encode("utf-8-sig")
+
+    st.download_button(
+        "⬇️ Descargar inventario CSV",
+        data=csv_inventario,
+        file_name="inventario_granizados_pl.csv",
+        mime="text/csv",
     )
 
-    bajos = sum(
-        0 < unidades <= 5
-        for unidades in st.session_state.inventario.values()
-    )
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Referencias", len(st.session_state.inventario))
-    c2.metric("Agotados", agotados)
-    c3.metric("Existencias bajas", bajos)
-
-    with st.expander("Consultar movimientos de inventario"):
+    with st.expander("Movimientos de inventario"):
         if st.session_state.movimientos:
             st.dataframe(
-                pd.DataFrame(st.session_state.movimientos),
+                pd.DataFrame(st.session_state.movimientos[::-1]),
+                hide_index=True,
                 use_container_width=True,
-                hide_index=True
-            )
-
-            st.download_button(
-                "Descargar movimientos CSV",
-                data=exportar_csv(st.session_state.movimientos),
-                file_name="movimientos_inventario.csv",
-                mime="text/csv"
             )
         else:
-            st.info("Todavía no existen movimientos registrados.")
-
+            st.info("Todavía no hay movimientos de inventario.")
 
 # =========================================================
-# PESTAÑA 3: HISTORIAL DE VENTAS
+# PESTAÑA 3: HISTORIAL Y ANULACIONES
 # =========================================================
-with tab_historial:
+with pestanas[2]:
     st.header("Historial de ventas")
 
-    ventas = st.session_state.ventas
+    if st.session_state.ventas:
+        df_ventas = pd.DataFrame(st.session_state.ventas)
 
-    if ventas:
-        df = pd.DataFrame([
-            {
-                "ID": v["ID"],
-                "Fecha y hora": v["Fecha y hora"],
-                "Categoría": v["Categoría"],
-                "Sabor": v["Sabor"],
-                "Presentación": v["Presentación"],
-                "Cantidad": v["Cantidad"],
-                "Medio de pago": v["Medio de pago"],
-                "Precio unitario": v["Precio unitario"],
-                "Total": v["Total"],
-                "Estado": v["Estado"]
-            }
-            for v in ventas
-        ])
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            desde = st.date_input(
-                "Fecha inicial",
-                value=date.today().replace(day=1),
-                key="hist_desde"
-            )
-
-        with col2:
-            hasta = st.date_input(
-                "Fecha final",
-                value=date.today(),
-                key="hist_hasta"
-            )
-
-        df["Fecha"] = pd.to_datetime(
-            df["Fecha y hora"],
-            errors="coerce"
-        ).dt.date
-
-        if desde > hasta:
-            st.warning(
-                "La fecha inicial no puede ser posterior a la fecha final."
-            )
-        else:
-            filtrado = df[
-                (df["Fecha"] >= desde)
-                & (df["Fecha"] <= hasta)
-            ]
-
-            st.dataframe(
-                filtrado.drop(columns=["Fecha"]),
-                use_container_width=True,
-                hide_index=True
-            )
-
-            st.download_button(
-                "⬇️ DESCARGAR HISTORIAL CSV",
-                data=exportar_csv(
-                    filtrado.drop(columns=["Fecha"]).to_dict(
-                        orient="records"
-                    )
-                ),
-                file_name="historial_ventas_granizados_pl.csv",
-                mime="text/csv"
-            )
-
-        st.divider()
-        st.subheader("Anular una venta")
-
-        vigentes = [
-            v for v in ventas
-            if v["Estado"] == "Vigente"
+        columnas = [
+            "ID", "Fecha", "Cliente", "Categoria", "Sabor",
+            "Presentacion", "Cantidad", "Precio unitario", "Total",
+            "Medio de pago", "Toppings adicionales", "Estado",
+            "Observacion",
         ]
 
+        columnas_disponibles = [
+            columna for columna in columnas
+            if columna in df_ventas.columns
+        ]
+
+        st.dataframe(
+            df_ventas[columnas_disponibles].sort_values(
+                "Fecha", ascending=False
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        ventas_csv = df_ventas.drop(
+            columns=["Consumos"], errors="ignore"
+        ).to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            "⬇️ Descargar historial de ventas",
+            data=ventas_csv,
+            file_name="historial_ventas_granizados_pl.csv",
+            mime="text/csv",
+        )
+
+        vigentes = ventas_vigentes()
+
         if vigentes:
+            st.subheader("Anular una venta")
+
             opciones = {
-                v["ID"]: (
-                    f"{v['ID']} | {v['Sabor']} | "
-                    f"{pesos(v['Total'])}"
-                )
-                for v in vigentes
+                (
+                    f'{venta["ID"]} | {venta["Fecha"]} | '
+                    f'{venta["Sabor"]} | {pesos(venta["Total"])}'
+                ): venta["ID"]
+                for venta in vigentes
             }
 
-            with st.form("formulario_anulacion"):
-                id_anular = st.selectbox(
-                    "Seleccione la venta",
-                    list(opciones.keys()),
-                    format_func=lambda x: opciones[x]
+            seleccion = st.selectbox(
+                "Venta que desea anular",
+                list(opciones.keys()),
+            )
+
+            motivo = st.text_input("Motivo de anulación")
+
+            if st.button(
+                "↩️ Anular venta y devolver inventario",
+                use_container_width=True,
+            ):
+                id_venta = opciones[seleccion]
+
+                venta_seleccionada = next(
+                    venta for venta in st.session_state.ventas
+                    if venta["ID"] == id_venta
                 )
 
-                motivo = st.text_input(
-                    "Motivo de la anulación"
-                )
+                # Solo se puede anular una venta vigente.
+                # Así se evita devolver existencias dos veces.
+                if venta_seleccionada.get("Estado", "Vigente") != "Vigente":
+                    st.error("Esta venta ya fue anulada.")
+                else:
+                    for producto, unidades in venta_seleccionada.get(
+                        "Consumos", {}
+                    ).items():
+                        st.session_state.inventario[producto] = (
+                            st.session_state.inventario.get(producto, 0)
+                            + int(unidades)
+                        )
 
-                confirmar_anulacion = st.form_submit_button(
-                    "⚠️ ANULAR Y DEVOLVER INSUMOS"
-                )
+                        registrar_movimiento(
+                            "Devolución por anulación",
+                            producto,
+                            int(unidades),
+                            id_venta,
+                        )
 
-            if confirmar_anulacion:
-                venta = next(
-                    v for v in st.session_state.ventas
-                    if v["ID"] == id_anular
-                )
+                    venta_seleccionada["Estado"] = "Anulada"
 
-                for producto, unidades in venta.get(
-                    "Consumos", {}
-                ).items():
-                    st.session_state.inventario[producto] = (
-                        st.session_state.inventario.get(producto, 0)
-                        + int(unidades)
+                    st.session_state.anulaciones.append({
+                        "Fecha": ahora(),
+                        "ID venta": id_venta,
+                        "Motivo": motivo.strip() or "Sin motivo indicado",
+                        "Total": venta_seleccionada["Total"],
+                    })
+
+                    guardar_datos()
+                    st.success(
+                        "Venta anulada y existencias devueltas al inventario."
                     )
-
-                venta["Estado"] = "Anulada"
-                venta["Motivo de anulación"] = (
-                    motivo.strip() or "Sin motivo especificado"
-                )
-                venta["Anulada el"] = ahora()
-
-                st.session_state.anulaciones.append({
-                    "ID": id_anular,
-                    "Fecha y hora": ahora(),
-                    "Motivo": venta["Motivo de anulación"]
-                })
-
-                registrar_movimiento(
-                    "Devolución por anulación",
-                    id_anular,
-                    0,
-                    "Devolución de todos los insumos consumidos"
-                )
-
-                guardar_datos()
-
-                st.success(
-                    "Venta anulada y existencias devueltas al inventario."
-                )
-                st.rerun()
+                    st.rerun()
         else:
             st.info("No hay ventas vigentes para anular.")
 
     else:
-        st.info("Todavía no hay ventas registradas.")
+        st.info("Todavía no se han registrado ventas.")
 
+    with st.expander("Historial de anulaciones"):
+        if st.session_state.anulaciones:
+            st.dataframe(
+                pd.DataFrame(st.session_state.anulaciones[::-1]),
+                hide_index=True,
+                use_container_width=True,
+            )
+        else:
+            st.info("No hay anulaciones registradas.")
 
 # =========================================================
 # PESTAÑA 4: CAJA Y GASTOS
 # =========================================================
-with tab_caja:
-    st.header("Caja y control de gastos")
+with pestanas[3]:
+    st.header("Caja y gastos")
 
-    fecha_caja = st.date_input(
-        "Fecha de consulta",
-        value=date.today(),
-        key="fecha_caja"
-    )
-
-    fecha_texto = fecha_caja.isoformat()
-
-    ventas_fecha = [
-        v for v in st.session_state.ventas
-        if v["Fecha y hora"].startswith(fecha_texto)
-        and v["Estado"] == "Vigente"
-    ]
+    ventas_activas = ventas_vigentes()
 
     efectivo = sum(
-        v["Total"] for v in ventas_fecha
+        float(v["Total"])
+        for v in ventas_activas
         if v["Medio de pago"] == "Efectivo"
     )
 
     transferencias = sum(
-        v["Total"] for v in ventas_fecha
+        float(v["Total"])
+        for v in ventas_activas
         if v["Medio de pago"] != "Efectivo"
     )
 
-    gastos_fecha = [
-        g for g in st.session_state.gastos
-        if g["Fecha y hora"].startswith(fecha_texto)
-    ]
-
-    gastos_efectivo = sum(
-        g["Valor"] for g in gastos_fecha
-        if g["Medio de pago"] == "Efectivo"
+    gastos_totales = sum(
+        float(g["Valor"]) for g in st.session_state.gastos
     )
 
-    gastos_digitales = sum(
-        g["Valor"] for g in gastos_fecha
-        if g["Medio de pago"] != "Efectivo"
-    )
-
-    neto_efectivo = efectivo - gastos_efectivo
-    neto_digital = transferencias - gastos_digitales
-    neto_total = neto_efectivo + neto_digital
-
-    c1, c2 = st.columns(2)
-    c1.metric("Ventas en efectivo", pesos(efectivo))
-    c2.metric("Ventas por transferencia", pesos(transferencias))
-
-    c3, c4 = st.columns(2)
-    c3.metric("Gastos del día", pesos(sum(
-        g["Valor"] for g in gastos_fecha
-    )))
-    c4.metric("Neto estimado", pesos(neto_total))
-
-    st.caption(
-        "El neto se calcula restando los gastos registrados a las ventas. "
-        "No reemplaza el arqueo físico de caja."
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Ventas en efectivo", pesos(efectivo))
+    col2.metric("Transferencias", pesos(transferencias))
+    col3.metric("Gastos registrados", pesos(gastos_totales))
+    col4.metric(
+        "Balance estimado",
+        pesos(efectivo + transferencias - gastos_totales),
     )
 
     st.divider()
     st.subheader("Registrar gasto")
 
-    with st.form("formulario_gasto"):
-        concepto = st.text_input("Concepto del gasto")
+    with st.form("form_gasto"):
+        concepto = st.text_input(
+            "Concepto",
+            placeholder="Ej. hielo, transporte o compra de insumos",
+        )
 
-        valor_gasto = st.number_input(
+        valor = st.number_input(
             "Valor del gasto (COP)",
             min_value=0,
             max_value=100000000,
             value=0,
-            step=1000
+            step=1000,
         )
 
         medio_gasto = st.selectbox(
             "Medio de pago del gasto",
-            ["Efectivo", "Transferencia"]
+            MEDIOS_PAGO,
         )
 
-        confirmar_gasto = st.form_submit_button(
-            "REGISTRAR GASTO"
+        detalle_gasto = st.text_input("Detalle adicional (opcional)")
+
+        guardar_gasto = st.form_submit_button(
+            "💾 Guardar gasto",
+            use_container_width=True,
         )
 
-    if confirmar_gasto:
-        if not concepto.strip() or valor_gasto <= 0:
+    if guardar_gasto:
+        if not concepto.strip() or valor <= 0:
             st.error(
-                "Escriba el concepto e indique un valor mayor que cero."
+                "Escribe el concepto e indica un valor mayor que cero."
             )
         else:
             st.session_state.gastos.append({
-                "Fecha y hora": ahora(),
+                "Fecha": ahora(),
                 "Concepto": concepto.strip(),
-                "Valor": int(valor_gasto),
-                "Medio de pago": medio_gasto
+                "Valor": int(valor),
+                "Medio de pago": medio_gasto,
+                "Detalle": detalle_gasto.strip(),
             })
 
             guardar_datos()
-            st.success("Gasto registrado correctamente.")
+            st.success("Gasto guardado correctamente.")
             st.rerun()
 
-    if gastos_fecha:
-        st.subheader("Detalle de gastos")
+    st.subheader("Gastos registrados")
+
+    if st.session_state.gastos:
         st.dataframe(
-            pd.DataFrame(gastos_fecha),
+            pd.DataFrame(st.session_state.gastos[::-1]),
+            hide_index=True,
             use_container_width=True,
-            hide_index=True
         )
 
+        gastos_csv = pd.DataFrame(st.session_state.gastos).to_csv(
+            index=False
+        ).encode("utf-8-sig")
+
+        st.download_button(
+            "⬇️ Descargar gastos CSV",
+            data=gastos_csv,
+            file_name="gastos_granizados_pl.csv",
+            mime="text/csv",
+        )
+    else:
+        st.info("Todavía no hay gastos registrados.")
 
 # =========================================================
 # PESTAÑA 5: REPORTES
 # =========================================================
-with tab_reportes:
+with pestanas[4]:
     st.header("Reportes de ventas")
 
-    ventas_vigentes = [
-        v for v in st.session_state.ventas
-        if v["Estado"] == "Vigente"
-    ]
+    ventas_activas = ventas_vigentes()
 
-    if ventas_vigentes:
+    if ventas_activas:
+        df = pd.DataFrame(ventas_activas)
+        df["Día"] = df["Fecha"].str[:10]
+
         col1, col2 = st.columns(2)
 
         with col1:
-            inicio = st.date_input(
-                "Inicio del reporte",
+            fecha_inicio = st.date_input(
+                "Fecha inicial",
                 value=date.today().replace(day=1),
-                key="reporte_inicio"
+                key="fecha_inicio_reporte",
             )
 
         with col2:
-            fin = st.date_input(
-                "Fin del reporte",
+            fecha_fin = st.date_input(
+                "Fecha final",
                 value=date.today(),
-                key="reporte_fin"
+                key="fecha_fin_reporte",
             )
 
-        if inicio > fin:
-            st.warning(
+        if fecha_inicio > fecha_fin:
+            st.error(
                 "La fecha inicial no puede ser posterior a la fecha final."
             )
         else:
-            periodo = [
-                v for v in ventas_vigentes
-                if inicio <= datetime.strptime(
-                    v["Fecha y hora"],
-                    "%Y-%m-%d %H:%M:%S"
-                ).date() <= fin
-            ]
+            df_periodo = df[
+                (df["Día"] >= fecha_inicio.isoformat())
+                & (df["Día"] <= fecha_fin.isoformat())
+            ].copy()
 
-            ingresos = sum(v["Total"] for v in periodo)
-            unidades = sum(v["Cantidad"] for v in periodo)
+            total_periodo = (
+                float(df_periodo["Total"].sum())
+                if not df_periodo.empty else 0
+            )
 
-            r1, r2, r3 = st.columns(3)
-            r1.metric("Ingresos del periodo", pesos(ingresos))
-            r2.metric("Unidades vendidas", unidades)
-            r3.metric("Número de ventas", len(periodo))
+            unidades_periodo = (
+                int(df_periodo["Cantidad"].sum())
+                if not df_periodo.empty else 0
+            )
 
-            if periodo:
-                df_periodo = pd.DataFrame(periodo)
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("Número de ventas", len(df_periodo))
+            col_b.metric("Unidades vendidas", unidades_periodo)
+            col_c.metric("Ingresos", pesos(total_periodo))
 
-                st.subheader("Ventas por sabor")
+            if not df_periodo.empty:
+                st.subheader("Ventas por categoría")
 
-                resumen_sabor = (
+                por_categoria = (
+                    df_periodo.groupby("Categoria", as_index=False)
+                    .agg(
+                        Ventas=("ID", "count"),
+                        Unidades=("Cantidad", "sum"),
+                        Ingresos=("Total", "sum"),
+                    )
+                )
+
+                st.dataframe(
+                    por_categoria,
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+                st.subheader("Sabores más vendidos")
+
+                por_sabor = (
                     df_periodo.groupby("Sabor", as_index=False)
                     .agg(
                         Unidades=("Cantidad", "sum"),
-                        Ingresos=("Total", "sum")
+                        Ingresos=("Total", "sum"),
                     )
-                    .sort_values("Ingresos", ascending=False)
+                    .sort_values("Unidades", ascending=False)
+                )
+
+                st.dataframe(
+                    por_sabor,
+                    hide_index=True,
+                    use_container_width=True,
                 )
 
                 st.bar_chart(
-                    resumen_sabor.set_index("Sabor")["Ingresos"]
+                    por_sabor.set_index("Sabor")["Unidades"]
                 )
 
-                st.dataframe(
-                    resumen_sabor,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                st.subheader("Ingresos por medio de pago")
-
-                resumen_pago = (
-                    df_periodo.groupby(
-                        "Medio de pago", as_index=False
-                    )["Total"].sum()
-                )
-
-                st.dataframe(
-                    resumen_pago,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                reporte_csv = df_periodo.drop(
+                    columns=["Consumos"], errors="ignore"
+                ).to_csv(index=False).encode("utf-8-sig")
 
                 st.download_button(
-                    "⬇️ DESCARGAR REPORTE CSV",
-                    data=exportar_csv([
-                        {
-                            "ID": v["ID"],
-                            "Fecha y hora": v["Fecha y hora"],
-                            "Sabor": v["Sabor"],
-                            "Cantidad": v["Cantidad"],
-                            "Medio de pago": v["Medio de pago"],
-                            "Total": v["Total"]
-                        }
-                        for v in periodo
-                    ]),
-                    file_name="reporte_granizados_pl.csv",
-                    mime="text/csv"
+                    "⬇️ Descargar reporte del periodo",
+                    data=reporte_csv,
+                    file_name="reporte_ventas_granizados_pl.csv",
+                    mime="text/csv",
                 )
             else:
                 st.info(
-                    "No hay ventas vigentes en el periodo seleccionado."
+                    "No hay ventas vigentes para el periodo seleccionado."
                 )
     else:
-        st.info(
-            "Registre ventas para comenzar a generar reportes."
-        )
+        st.info("Registra ventas para generar reportes.")
 
-    st.divider()
-    st.subheader("Copia de seguridad")
-
-    st.write(
-        f"Archivo de datos: `{ARCHIVO_DATOS}`"
-    )
-
-    if ARCHIVO_DATOS.exists():
-        st.download_button(
-            "⬇️ DESCARGAR RESPALDO COMPLETO JSON",
-            data=ARCHIVO_DATOS.read_bytes(),
-            file_name="respaldo_granizados_pl.json",
-            mime="application/json"
-        )
-
-    st.warning(
-        "Guarde copias de seguridad periódicamente. "
-        "El archivo JSON está en el equipo donde se ejecuta Streamlit; "
-        "no sincroniza automáticamente varios computadores."
-    )
+# =========================================================
+# PIE DE PÁGINA
+# =========================================================
+st.divider()
+st.caption(
+    "Granizados PL · Los datos se guardan localmente en "
+    "la carpeta datos_granizados_pl."
+)
