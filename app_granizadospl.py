@@ -55,23 +55,22 @@ st.caption("📍 Túquerres, Nariño | El sabor que nos une")
 # =========================================================
 # INVENTARIO INICIAL (EN CEROS PARA CARGA MANUAL)
 # =========================================================
-INVENTARIO_INICIAL = {
-    "Vaso 12 oz (und)": 0, "Sachet 12 oz (und)": 0, "Pitillos (und)": 0, "Bolsa de papel (und)": 0,
-    "Toppings de dulces (porción)": 0, "Barquillo (und)": 0, "Lluvia de chocolate (porción)": 0,
-    "Ron Blanco (copa)": 0, "Tequila (copa)": 0, "Vodka (copa)": 0, "Whisky (copa)": 0,
-    "Aguardiente (copa)": 0, "Champaña (copa)": 0, "Baileys (copa)": 0,
-    "Sabor Bombombum": 0, "Sabor Limonada de Coco": 0, "Sabor Limonada de Sandía": 0,
-    "Sabor Manzana Verde": 0, "Sabor Maracululo": 0, "Sabor Maracupíña": 0, "Sabor Piña Naranja": 0, "Sabor Uva": 0,
-    "Sabor Agave Ice": 0, "Sabor Andromeda Ice": 0, "Sabor Bon Bon Bum Ice": 0, "Sabor Candy Ice": 0,
-    "Sabor Cherryboom Ice": 0, "Sabor Cosmico Ice": 0, "Sabor Estelar Ice": 0, "Sabor Fresa Salvaje Ice": 0,
-    "Sabor Fourloko Ice": 0, "Sabor Interestelar Ice": 0, "Sabor Luxury Ice": 0, "Sabor Mango Explosivo Ice": 0,
-    "Sabor Miami Ice": 0, "Sabor Monaco Ice": 0, "Sabor Mora Azul Ice": 0, "Sabor Nebula Ice": 0,
-    "Sabor Orion Ice": 0, "Sabor Smirnoff Lulo Ice": 0, "Sabor Smirnoff Limon Ice": 0,
-    "Sabor Tropical Caribeña Ice": 0, "Sabor Velvet Ice": 0, "Sabor Bayleys": 0, "Sabor Coco Loco": 0, "Sabor Piña Colada": 0
-}
-
 if "inventario" not in st.session_state:
-    st.session_state.inventario = INVENTARIO_INICIAL.copy()
+    st.session_state.inventario = {
+        "Vaso 12 oz (und)": 0, "Sachet 12 oz (und)": 0, "Pitillos (und)": 0, "Bolsa de papel (und)": 0,
+        "Toppings de dulces (porción)": 0, "Barquillo (und)": 0, "Lluvia de chocolate (porción)": 0,
+        "Ron Blanco (copa)": 0, "Tequila (copa)": 0, "Vodka (copa)": 0, "Whisky (copa)": 0,
+        "Aguardiente (copa)": 0, "Champaña (copa)": 0, "Baileys (copa)": 0,
+        "Sabor Bombombum": 0, "Sabor Limonada de Coco": 0, "Sabor Limonada de Sandía": 0,
+        "Sabor Manzana Verde": 0, "Sabor Maracululo": 0, "Sabor Maracupíña": 0, "Sabor Piña Naranja": 0, "Sabor Uva": 0,
+        "Sabor Agave Ice": 0, "Sabor Andromeda Ice": 0, "Sabor Bon Bon Bum Ice": 0, "Sabor Candy Ice": 0,
+        "Sabor Cherryboom Ice": 0, "Sabor Cosmico Ice": 0, "Sabor Estelar Ice": 0, "Sabor Fresa Salvaje Ice": 0,
+        "Sabor Fourloko Ice": 0, "Sabor Interestelar Ice": 0, "Sabor Luxury Ice": 0, "Sabor Mango Explosivo Ice": 0,
+        "Sabor Miami Ice": 0, "Sabor Monaco Ice": 0, "Sabor Mora Azul Ice": 0, "Sabor Nebula Ice": 0,
+        "Sabor Orion Ice": 0, "Sabor Smirnoff Lulo Ice": 0, "Sabor Smirnoff Limon Ice": 0,
+        "Sabor Tropical Caribeña Ice": 0, "Sabor Velvet Ice": 0, "Sabor Bayleys": 0, "Sabor Coco Loco": 0, "Sabor Piña Colada": 0
+    }
+
 if "ventas_detalladas" not in st.session_state:
     st.session_state.ventas_detalladas = []
 if "historial_cargas" not in st.session_state:
@@ -118,45 +117,6 @@ SABORES_POR_CATEGORIA = {
 def pesos(valor):
     return f"${valor:,.0f} COP"
 
-def receta_pedido(categoria, sabor_nombre, presentacion):
-    config = SABORES_POR_CATEGORIA[categoria]
-    sabor_info = config["sabores_inventario"][sabor_nombre]
-    empaque = "Vaso 12 oz (und)" if presentacion == "Vaso" else "Sachet 12 oz (und)"
-    receta = {empaque: 1, "Pitillos (und)": 1, "Bolsa de papel (und)": 1, sabor_info["bodega"]: 1}
-    for topping in config["toppings"]:
-        receta[topping] = receta.get(topping, 0) + 1
-    for licor in sabor_info["insumos"]:
-        receta[licor] = receta.get(licor, 0) + 1
-    return receta
-
-def procesar_pedido(categoria, sabor_nombre, presentacion, cantidad, medio_pago):
-    config = SABORES_POR_CATEGORIA[categoria]
-    receta_unitaria = receta_pedido(categoria, sabor_nombre, presentacion)
-    receta_total = {insumo: unidades * cantidad for insumo, unidades in receta_unitaria.items()}
-
-    faltantes = []
-    for insumo, unidades_necesarias in receta_total.items():
-        disponible = st.session_state.inventario.get(insumo, 0)
-        if disponible < unidades_necesarias:
-            faltantes.append(f"{insumo}: disponibles {int(disponible)}, necesarios {unidades_necesarias}")
-
-    if faltantes:
-        st.error("❌ No se registró la venta. Inventario insuficiente:")
-        for detalle in faltantes:
-            st.write(f"- {detalle}")
-        return False
-
-    for insumo, unidades in receta_total.items():
-        st.session_state.inventario[insumo] -= unidades
-
-    precio_unitario = config["precio"]
-    total = precio_unitario * cantidad
-    st.session_state.ventas_detalladas.append({
-        "Fecha y hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Categoría": categoria, "Sabor": sabor_nombre,
-        "Presentación": presentacion, "Cantidad": cantidad, "Medio de Pago": medio_pago, "Precio unitario (COP)": precio_unitario, "Total (COP)": total
-    })
-    return True
-
 # =========================================================
 # 🛍️ SECCIÓN 1: FORMULARIO DE VENTAS (FIJO ARRIBA)
 # =========================================================
@@ -170,8 +130,44 @@ with st.container(border=True):
     cantidad_venta = st.number_input("5. Cantidad de unidades:", min_value=1, max_value=100, value=1, step=1, key="cant_v")
 
     precio_actual = SABORES_POR_CATEGORIA[categoria]["precio"]
+    total_venta = precio_actual * int(cantidad_venta)
     st.markdown(f"### Valor Unitario: {pesos(precio_actual)}")
-    st.markdown(f"### Total de la Venta: {pesos(precio_actual * cantidad_venta)}")
+    st.markdown(f"### Total de la Venta: {pesos(total_venta)}")
 
     if st.button("🚀 REGISTRAR VENTA", use_container_width=True):
-        if procesar_pedido(categoria, sabor, presentacion, int(cantidad_venta), medio_pago):
+        config = SABORES_POR_CATEGORIA[categoria]
+        sabor_info = config["sabores_inventario"][sabor]
+        empaque = "Vaso 12 oz (und)" if presentacion == "Vaso" else "Sachet 12 oz (und)"
+        
+        # Armar la receta final multiplicada por las unidades vendidas
+        receta_total = {
+            empaque: int(cantidad_venta),
+            "Pitillos (und)": int(cantidad_venta),
+            "Bolsa de papel (und)": int(cantidad_venta),
+            sabor_info["bodega"]: int(cantidad_venta)
+        }
+        for topping in config["toppings"]:
+            receta_total[topping] = receta_total.get(topping, 0) + int(cantidad_venta)
+        for licor in sabor_info["insumos"]:
+            receta_total[licor] = receta_total.get(licor, 0) + int(cantidad_venta)
+            
+        # Comprobar existencias físicas
+        faltantes = []
+        for insumo, unidades_necesarias in receta_total.items():
+            disponible = st.session_state.inventario.get(insumo, 0)
+            if disponible < unidades_necesarias:
+                faltantes.append(f"{insumo}: disponibles {int(disponible)}, necesarios {unidades_necesarias}")
+                
+        if faltantes:
+            st.error("❌ Inventario insuficiente en bodega para procesar el despacho:")
+            for detalle in faltantes:
+                st.write(f"- {detalle}")
+        else:
+            for insumo, unidades in receta_total.items():
+                st.session_state.inventario[insumo] -= unidades
+            st.session_state.ventas_detalladas.append({
+                "Fecha y hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion,
+                "Cantidad": int(cantidad_venta), "Medio de Pago": medio_pago,
+                "Precio unitario (COP)": precio_actual, "Total (COP)": total_venta
+            })
