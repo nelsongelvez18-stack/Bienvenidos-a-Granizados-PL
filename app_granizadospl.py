@@ -35,8 +35,8 @@ MEDIOS_PAGO = [
 
 PRESENTACIONES = ["Vaso 12 oz", "Sachet 12 oz"]
 
-# Estos productos no aparecerán en el selector de reabastecimiento.
-# Se conservan en el inventario porque algunas recetas los consumen.
+# Estos productos se mantienen en las recetas e inventario,
+# pero no aparecen en los selectores de reabastecimiento.
 PRODUCTOS_OCULTOS_REABASTECIMIENTO = {
     "Aguardiente (copa)",
     "Baileys (copa)",
@@ -329,6 +329,13 @@ MENU = {
     },
 }
 
+# Asegurar que todos los sabores de la carta existan en el inventario.
+# Esto incluye, por ejemplo, Sabor Mora Azul Ice.
+for datos_categoria in MENU.values():
+    for datos_sabor in datos_categoria["sabores"].values():
+        producto_bodega = datos_sabor["bodega"]
+        INVENTARIO_BASE.setdefault(producto_bodega, 0)
+
 # =========================================================
 # FUNCIONES DE DATOS
 # =========================================================
@@ -383,7 +390,12 @@ def cargar_datos():
             gastos = datos.get("gastos", [])
             anulaciones = datos.get("anulaciones", [])
 
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        except (
+            OSError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+        ):
             st.error(
                 "No se pudo leer el archivo de datos. "
                 "Realiza una copia de datos_pos.json antes de modificarlo."
@@ -662,65 +674,141 @@ with pestanas[1]:
     st.header("Inventario y reabastecimiento")
 
     st.info(
-        "Agrega las cantidades que ingresen físicamente al negocio. "
-        "Las existencias se guardan automáticamente."
+        "Selecciona el grupo del producto que deseas reabastecer. "
+        "Las entradas se suman a las existencias actuales y se registran "
+        "en el historial de movimientos."
     )
 
-    # ---------- REABASTECIMIENTO ----------
+    # -----------------------------------------------------
+    # REABASTECIMIENTO SEPARADO POR GRUPOS
+    # -----------------------------------------------------
     st.subheader("➕ Agregar existencias")
 
-    productos_disponibles = sorted([
-        producto
-        for producto in st.session_state.inventario.keys()
-        if producto not in PRODUCTOS_OCULTOS_REABASTECIMIENTO
-    ])
+    # Sabores de granizados sin alcohol.
+    productos_sin_alcohol = {
+        datos["bodega"]
+        for datos in MENU["SIN ALCOHOL"]["sabores"].values()
+    }
 
-    with st.form("form_reabastecimiento"):
-        producto_reponer = st.selectbox(
-            "Producto a reabastecer",
-            productos_disponibles,
-            key="producto_reponer",
-        )
+    # Sabores con alcohol, incluyendo los granizados cremosos.
+    productos_con_alcohol = {
+        datos["bodega"]
+        for categoria_menu in ["CON ALCOHOL", "CREMOSOS"]
+        for datos in MENU[categoria_menu]["sabores"].values()
+    }
 
-        cantidad_reponer = st.number_input(
-            "Cantidad que ingresa",
-            min_value=1,
-            max_value=10000,
-            value=1,
-            step=1,
-            key="cantidad_reponer",
-        )
+    # Toppings, incluyendo lluvia de chocolate y barquillo.
+    productos_toppings = set(TOPPINGS.values())
+    productos_toppings.update({
+        "Lluvia de chocolate (porción)",
+        "Barquillo (und)",
+    })
 
-        detalle_reponer = st.text_input(
-            "Detalle del ingreso",
-            placeholder="Ej. compra a proveedor",
-        )
+    # Elementos de empaque.
+    productos_empaque = {
+        "Vaso 12 oz (und)",
+        "Sachet 12 oz (und)",
+        "Bolsa de papel (und)",
+        "Pitillos (und)",
+    }
 
-        confirmar_reabastecimiento = st.form_submit_button(
-            "Guardar reabastecimiento",
-            use_container_width=True,
-        )
+    grupos_reabastecimiento = [
+        (
+            "🧊 Granizados sin alcohol",
+            productos_sin_alcohol,
+            "sin_alcohol",
+        ),
+        (
+            "🍹 Granizados con alcohol",
+            productos_con_alcohol,
+            "con_alcohol",
+        ),
+        (
+            "🍬 Toppings",
+            productos_toppings,
+            "toppings",
+        ),
+        (
+            "🥤 Vasos, sachets, bolsas y pitillos",
+            productos_empaque,
+            "empaque",
+        ),
+    ]
 
-    if confirmar_reabastecimiento:
-        st.session_state.inventario[producto_reponer] += int(
-            cantidad_reponer
-        )
+    for titulo, productos_grupo, clave in grupos_reabastecimiento:
+        opciones_producto = sorted([
+            producto
+            for producto in productos_grupo
+            if producto in st.session_state.inventario
+            and producto not in PRODUCTOS_OCULTOS_REABASTECIMIENTO
+        ])
 
-        registrar_movimiento(
-            "Entrada / reabastecimiento",
-            producto_reponer,
-            int(cantidad_reponer),
-            detalle_reponer.strip() or "Reabastecimiento manual",
-        )
+        with st.container(border=True):
+            st.subheader(titulo)
 
-        guardar_datos()
-        st.success(
-            f"Se agregaron {cantidad_reponer} unidades a "
-            f"{producto_reponer}."
-        )
-        st.rerun()
+            if not opciones_producto:
+                st.info("No hay productos disponibles en este grupo.")
+                continue
 
-    # ---------- EXISTENCIAS ACTUALES ----------
+            with st.form(f"form_reabastecimiento_{clave}"):
+                producto_reponer = st.selectbox(
+                    "Producto a reabastecer",
+                    opciones_producto,
+                    key=f"producto_reponer_{clave}",
+                )
+
+                st.caption(
+                    "Existencias actuales: "
+                    f"{st.session_state.inventario.get(producto_reponer, 0)}"
+                )
+
+                cantidad_reponer = st.number_input(
+                    "Cantidad que ingresa",
+                    min_value=1,
+                    max_value=10000,
+                    value=1,
+                    step=1,
+                    key=f"cantidad_reponer_{clave}",
+                )
+
+                detalle_reponer = st.text_input(
+                    "Detalle del ingreso (opcional)",
+                    placeholder="Ej. compra a proveedor",
+                    key=f"detalle_reponer_{clave}",
+                )
+
+                confirmar_reabastecimiento = st.form_submit_button(
+                    "➕ Guardar reabastecimiento",
+                    use_container_width=True,
+                    type="primary",
+                )
+
+            if confirmar_reabastecimiento:
+                cantidad_ingresada = int(cantidad_reponer)
+
+                st.session_state.inventario[producto_reponer] += (
+                    cantidad_ingresada
+                )
+
+                registrar_movimiento(
+                    "Entrada / reabastecimiento",
+                    producto_reponer,
+                    cantidad_ingresada,
+                    detalle_reponer.strip() or "Reabastecimiento manual",
+                )
+
+                guardar_datos()
+
+                st.success(
+                    f"Se agregaron {cantidad_ingresada} unidades a "
+                    f"{producto_reponer}. Existencias nuevas: "
+                    f"{st.session_state.inventario[producto_reponer]}."
+                )
+                st.rerun()
+
+    # -----------------------------------------------------
+    # EXISTENCIAS ACTUALES
+    # -----------------------------------------------------
     st.divider()
     st.subheader("📦 Existencias actuales")
 
@@ -757,7 +845,9 @@ with pestanas[1]:
         mime="text/csv",
     )
 
-    # ---------- CORREGIR EXISTENCIAS ----------
+    # -----------------------------------------------------
+    # CORREGIR EXISTENCIAS
+    # -----------------------------------------------------
     st.divider()
     st.subheader("✏️ Corregir una existencia")
 
@@ -824,7 +914,8 @@ with pestanas[1]:
                 (
                     f"Antes: {valor_anterior}; "
                     f"después: {valor_nuevo}; "
-                    f"motivo: {motivo_correccion.strip() or 'No especificado'}"
+                    f"motivo: "
+                    f"{motivo_correccion.strip() or 'No especificado'}"
                 ),
             )
 
@@ -835,10 +926,12 @@ with pestanas[1]:
             )
             st.rerun()
 
-    # ---------- MOVIMIENTOS ----------
+    # -----------------------------------------------------
+    # MOVIMIENTOS DE INVENTARIO
+    # -----------------------------------------------------
     st.divider()
 
-    with st.expander("Historial de movimientos de inventario"):
+    with st.expander("📜 Historial de movimientos de inventario"):
         if st.session_state.movimientos:
             st.dataframe(
                 pd.DataFrame(st.session_state.movimientos[::-1]),
