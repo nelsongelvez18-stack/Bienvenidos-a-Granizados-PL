@@ -1,11 +1,10 @@
 
-
 import json
 from pathlib import Path
 from datetime import datetime, date
 from collections import Counter
 
-import pandas as pdhttps://github.com/nelsongelvez18-stack/Bienvenidos-a-Granizados-PL/blob/main/app_granizadospl.py
+import pandas as pd
 import streamlit as st
 
 # =========================================================
