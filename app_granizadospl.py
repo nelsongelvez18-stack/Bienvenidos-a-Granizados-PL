@@ -231,16 +231,32 @@ with tab_caja:
     a.metric("Ventas en efectivo", dinero(efectivo)); b.metric("Transferencias", dinero(transferencias)); c.metric("Gastos de hoy", dinero(gastos_totales)); d.metric("Saldo neto estimado", dinero(efectivo + transferencias - gastos_totales))
 
     st.subheader("Registrar compra de granizados")
-    st.caption("Costo unitario automático: sin alcohol $3.100, con alcohol $3.300 y cremosos $4.100.")
-    with st.form("form_compra", clear_on_submit=True):
-        categoria_compra = st.selectbox("Categoría de compra", list(SABORES.keys()))
-        sabor_compra = st.selectbox("Sabor comprado", SABORES[categoria_compra])
-        cantidad_compra = st.number_input("Cantidad comprada", min_value=1, max_value=10000, value=1, step=1)
+    st.caption("Selecciona primero la categoría. El selector de sabor se actualiza inmediatamente y solo muestra los sabores de esa categoría.")
+    col_compra_1, col_compra_2 = st.columns(2)
+    with col_compra_1:
+        categoria_compra = st.selectbox(
+            "Categoría de compra",
+            options=list(SABORES.keys()),
+            key="categoria_compra_selector",
+        )
+        # Una clave diferente por categoría evita que Streamlit conserve un sabor
+        # anterior que no pertenece a la categoría recién seleccionada.
+        sabor_compra = st.selectbox(
+            "Sabor comprado",
+            options=SABORES[categoria_compra],
+            key=f"sabor_compra_selector_{categoria_compra}",
+        )
+        cantidad_compra = st.number_input(
+            "Cantidad comprada", min_value=1, max_value=10000, value=1, step=1,
+            key="cantidad_compra_selector",
+        )
+    with col_compra_2:
         costo_unitario = PRECIOS_COMPRA[categoria_compra]
-        st.write(f"Costo unitario: **{dinero(costo_unitario)}** · Total: **{dinero(costo_unitario * int(cantidad_compra))}**")
+        st.metric("Costo por unidad", dinero(costo_unitario))
+        st.metric("Total de la compra", dinero(costo_unitario * int(cantidad_compra)))
         medio_compra = st.selectbox("Medio de pago", METODOS_PAGO, key="medio_pago_compra")
-        detalle_compra = st.text_input("Proveedor / detalle (opcional)")
-        guardar_compra = st.form_submit_button("Registrar compra y sumar al inventario")
+        detalle_compra = st.text_input("Proveedor / detalle (opcional)", key="detalle_compra_selector")
+    guardar_compra = st.button("Registrar compra y sumar al inventario", key="boton_guardar_compra", type="primary")
     if guardar_compra:
         producto = clave_sabor(sabor_compra)
         compra_id = "C-" + datetime.now().strftime("%Y%m%d%H%M%S%f")
