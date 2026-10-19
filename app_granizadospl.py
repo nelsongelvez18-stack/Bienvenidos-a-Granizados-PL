@@ -139,12 +139,29 @@ tab_ventas, tab_inventario, tab_historial, tab_caja, tab_reportes, tab_cierre = 
 
 with tab_ventas:
     st.header("Registrar venta")
+    st.caption("Selecciona la categoría para ver únicamente sus sabores. La lista se actualiza al instante.")
+
+    # Estos selectores van fuera del formulario para que Streamlit actualice
+    # los sabores inmediatamente cuando cambia la categoría.
+    categoria = st.selectbox(
+        "Categoría del granizado",
+        options=list(SABORES.keys()),
+        key="categoria_venta_selector",
+    )
+    sabores_categoria = list(dict.fromkeys(SABORES[categoria]))
+    clave_sabor_ui = f"sabor_venta_selector_{categoria}"
+    if st.session_state.get(clave_sabor_ui) not in sabores_categoria:
+        st.session_state[clave_sabor_ui] = sabores_categoria[0]
+    sabor = st.selectbox(
+        "Sabor",
+        options=sabores_categoria,
+        key=clave_sabor_ui,
+    )
+
     with st.form("form_venta", clear_on_submit=True):
         c1, c2 = st.columns(2)
         with c1:
             cliente = st.text_input("Cliente (opcional)")
-            categoria = st.selectbox("Categoría", list(SABORES.keys()))
-            sabor = st.selectbox("Sabor", SABORES[categoria])
             presentacion = st.selectbox("Presentación", ["Vaso 12 oz", "Sachet 12 oz"])
         with c2:
             cantidad = st.number_input("Cantidad", min_value=1, max_value=50, value=1, step=1)
@@ -154,21 +171,26 @@ with tab_ventas:
         precio_unitario = PRECIOS_VENTA[categoria]
         st.write(f"Precio unitario: **{dinero(precio_unitario)}** · Total estimado: **{dinero(precio_unitario * int(cantidad))}**")
         guardar_venta = st.form_submit_button("Registrar venta")
+
     if guardar_venta:
-        consumos_unitarios = consumos_venta(sabor, presentacion, extras)
-        consumos = {p: q * int(cantidad) for p, q in consumos_unitarios.items()}
-        faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumos.items() if int(st.session_state.inventario.get(p, 0)) < q]
-        if faltantes:
-            st.error("Inventario insuficiente: " + "; ".join(f"{p}: requiere {q}, disponible {disp}" for p, q, disp in faltantes))
+        # Volver a validar el sabor evita registrar una opción ajena a la categoría.
+        if sabor not in SABORES[categoria]:
+            st.error("El sabor seleccionado no corresponde a la categoría. Selecciónalo nuevamente.")
         else:
-            venta_id = "V-" + datetime.now().strftime("%Y%m%d%H%M%S%f")
-            for producto, unidades in consumos.items():
-                st.session_state.inventario[producto] -= unidades
-                registrar_movimiento(producto, "Salida por venta", unidades, f"Venta de {sabor}", venta_id)
-            st.session_state.ventas.append({"ID": venta_id, "Fecha": ahora(), "Cliente": cliente.strip() or "Cliente general", "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion, "Cantidad": int(cantidad), "Precio unitario": precio_unitario, "Total": precio_unitario * int(cantidad), "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones": extras, "Consumos": consumos, "Estado": "Vigente"})
-            guardar_datos()
-            st.success(f"Venta registrada por {dinero(precio_unitario * int(cantidad))}.")
-            st.rerun()
+            consumos_unitarios = consumos_venta(sabor, presentacion, extras)
+            consumos = {p: q * int(cantidad) for p, q in consumos_unitarios.items()}
+            faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumos.items() if int(st.session_state.inventario.get(p, 0)) < q]
+            if faltantes:
+                st.error("Inventario insuficiente: " + "; ".join(f"{p}: requiere {q}, disponible {disp}" for p, q, disp in faltantes))
+            else:
+                venta_id = "V-" + datetime.now().strftime("%Y%m%d%H%M%S%f")
+                for producto, unidades in consumos.items():
+                    st.session_state.inventario[producto] -= unidades
+                    registrar_movimiento(producto, "Salida por venta", unidades, f"Venta de {sabor}", venta_id)
+                st.session_state.ventas.append({"ID": venta_id, "Fecha": ahora(), "Cliente": cliente.strip() or "Cliente general", "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion, "Cantidad": int(cantidad), "Precio unitario": precio_unitario, "Total": precio_unitario * int(cantidad), "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones": extras, "Consumos": consumos, "Estado": "Vigente"})
+                guardar_datos()
+                st.success(f"Venta registrada por {dinero(precio_unitario * int(cantidad))}.")
+                st.rerun()
     ventas_hoy = ventas_vigentes(date.today(), date.today())
     efectivo_hoy = sum(int(v.get("Total", 0)) for v in ventas_hoy if v.get("Medio de pago") == "Efectivo")
     transferencias_hoy = sum(int(v.get("Total", 0)) for v in ventas_hoy if v.get("Medio de pago") != "Efectivo")
