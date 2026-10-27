@@ -528,8 +528,8 @@ with tab_caja:
     m4.metric("Efectivo en caja", dinero(r["caja_efectivo"]), border=True)
 
     with st.container(border=True):
-        st.subheader("Registrar compra (Granizados o Toppings)")
-        tipo_compra = st.radio("¿Qué tipo de producto vas a comprar?", ["Granizados (Sabores)", "Adiciones / Toppings (Paquetes o unidades)"], horizontal=True)
+        st.subheader("Registrar compra (Granizados, Toppings o Insumos)")
+        tipo_compra = st.radio("¿Qué tipo de producto vas a comprar?", ["Granizados (Sabores)", "Adiciones / Toppings", "Insumos y otros (Vasos, pitillos, bolsas)"], horizontal=True)
         
         if tipo_compra == "Granizados (Sabores)":
             cc1, cc2 = st.columns(2)
@@ -554,7 +554,8 @@ with tab_caja:
                 st.session_state.gastos.append({"ID": "G-" + cid, "Fecha": ahora(), "Concepto": f"Compra granizado: {sabor_c}", "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Compra ID": cid, "Anulado": False})
                 guardar_datos()
                 avisar(f"Compra registrada por {dinero(total_c)} y sumada al inventario.", "🛒")
-        else:
+                
+        elif tipo_compra == "Adiciones / Toppings":
             tc1, tc2 = st.columns(2)
             with tc1:
                 adicion_elegida = st.selectbox("Selecciona la Adición / Topping", EXTRAS, key="adic_compra_sel")
@@ -577,6 +578,32 @@ with tab_caja:
                     })
                     guardar_datos()
                     avisar(f"Compra de {adicion_elegida} registrada ({porciones_adic} porciones sumadas).", "🎉")
+                    
+        else:
+            # Insumos y otros (Vasos, pitillos, bolsas)
+            insumos_lista = ["Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"]
+            ic1, ic2 = st.columns(2)
+            with ic1:
+                insumo_elegido = st.selectbox("Selecciona el insumo", insumos_lista, key="insumo_compra_sel")
+                valor_insumo = st.number_input("Valor total pagado ($)", min_value=0, value=0, step=500, key="val_insumo_compra")
+                cantidad_insumo = st.number_input("Cantidad comprada (unidades)", min_value=1, value=1, step=1, key="cant_insumo_compra")
+            with ic2:
+                medio_insumo = st.selectbox("Medio de pago", METODOS_PAGO, key="medio_insumo_pago")
+                det_insumo = st.text_input("Proveedor / Observación", key="det_insumo_compra")
+            
+            if st.button("Registrar compra de insumo", type="primary"):
+                if valor_insumo <= 0:
+                    st.error("El valor debe ser mayor a cero.")
+                else:
+                    gid = "G-INS-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
+                    st.session_state.inventario[insumo_elegido] = int(st.session_state.inventario.get(insumo_elegido, 0)) + int(cantidad_insumo)
+                    registrar_movimiento(insumo_elegido, "Entrada por compra de insumo", cantidad_insumo, det_insumo, gid)
+                    st.session_state.gastos.append({
+                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra insumo: {insumo_elegido}", "Valor": int(valor_insumo),
+                        "Medio de pago": medio_insumo, "Detalle": det_insumo, "Producto": insumo_elegido, "Unidades": int(cantidad_insumo), "Anulado": False
+                    })
+                    guardar_datos()
+                    avisar(f"Compra de {insumo_elegido} registrada ({cantidad_insumo} unidades sumadas).", "🥤")
 
     with st.expander("Registrar otro gasto general (servicios, transporte, etc.)"):
         with st.form("form_gasto_general", clear_on_submit=True):
