@@ -181,7 +181,7 @@ def ventas_vigentes(desde=None, hasta=None):
 
 
 def compras_vigentes():
-    return [c for c in st.session_state.compras if c.get("Estado", "Vigente"] == "Vigente"]
+    return [c for c in st.session_state.compras if c.get("Estado", "Vigente") == "Vigente"]
 
 
 def gastos_vigentes(fecha=None):
@@ -291,4 +291,21 @@ CSS_GENERAL = (
     ".granizado-avatar-vaso::after { content: ''; position: absolute; top: -32px; right: 22px; width: 8px; height: 45px; background: #10b981; transform: rotate(25deg); border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }\n"
     ".avatar-emoji { font-size: 38px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }\n"
     ".floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }\n"
-    ".floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font
+    ".floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }\n"
+    ".banner-texto { flex: 1; }\n"
+    ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }\n"
+    ".banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }\n"
+    ".banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); animation: pulseGlow 4s infinite ease-in-out; }\n"
+    ".banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }\n"
+    ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }\n"
+    ".cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }\n"
+    ".cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }\n"
+    ".cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }\n"
+    ".cobro p { margin: 8px 0 0; font-size: 14px; color: #6366f1; font-weight: 600; }\n"
+    ".tile { padding: 18px 22px; border-radius: 20px; color: #ffffff; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.2s; }\n"
+    ".tile:hover { transform: translateY(-3px); }\n"
+    ".tile span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.5px; }\n"
+    ".tile b { display: block; font: 700 28px 'Outfit', sans-serif; margin-top: 4px; }\n"
+    ".chip-cat { display: inline-block; border-radius: 999px; padding: 6px 18px; font-weight: 700; color: #ffffff; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }\n"
+    "[data-testid=\"stBaseButton-primary\"] { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 0; min-height: 3.5rem; border-radius: 16px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35); transition: all 0.3s; }\n"
+    "[data-testid=\"stBaseButton-primary\"]:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); box-
