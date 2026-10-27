@@ -3,6 +3,7 @@ import hmac
 import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+import random
 
 import pandas as pd
 import streamlit as st
@@ -27,6 +28,16 @@ SABORES = {
     "CREMOSOS": ["Bayleys", "Coco Loco", "Piña Colada"],
 }
 EXTRAS = ["Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", "Goma splash (porción)", "Barquillo (und)"]
+
+FRASES_MOTIVADORAS = [
+    "🚀 ¡Hoy es un gran día para romper récords de ventas en Granizados PL!",
+    "🍧 Cada granizado que preparas dibuja una sonrisa en tus clientes.",
+    "💡 El éxito es la suma de pequeños esfuerzos repetidos día tras día. ¡A darla toda!",
+    "⭐ ¡Tu energía y actitud positiva son el mejor ingrediente de la casa!",
+    "🌟 Construye el negocio de tus sueños con constancia, pasión y el mejor sabor.",
+    "🎯 ¡A por todas! Hoy tu esfuerzo se convertirá en grandes resultados.",
+    "🔥 Calidad, rapidez y una sonrisa: la fórmula secreta del éxito en Túquerres."
+]
 
 
 def clave_sabor(sabor):
@@ -141,6 +152,8 @@ if "datos_inicializados" not in st.session_state:
     for _k, _v in cargar_datos().items():
         st.session_state[_k] = _v
     st.session_state.datos_inicializados = True
+    # Seleccionar frase motivadora única para esta sesión de apertura
+    st.session_state.frase_del_dia = random.choice(FRASES_MOTIVADORAS)
 
 if "_aviso" in st.session_state:
     _msg, _ico = st.session_state.pop("_aviso")
@@ -267,18 +280,16 @@ CSS_GENERAL = (
     "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');\n"
     "html, body, [class*=\"css\"] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }\n"
     ".block-container { padding-top: 1.5rem; max-width: 1250px; }\n"
-    "@keyframes floatDynamic { 0% { transform: translateY(0px) rotate(0deg) scale(1); } 33% { transform: translateY(-10px) rotate(2deg) scale(1.02); } 66% { transform: translateY(5px) rotate(-2deg) scale(0.98); } 100% { transform: translateY(0px) rotate(0deg) scale(1); } }\n"
     "@keyframes pulseGlow { 0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } 50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.4); } 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } }\n"
     "@keyframes floatBadge1 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-8px, -12px) rotate(5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
     "@keyframes floatBadge2 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(10px, 8px) rotate(-5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
-    "@keyframes cupBounce { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(3deg); } }\n"
+    "@keyframes vasoAnimado { 0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); } 50% { transform: translateY(-8px) rotate(3deg) scale(1.03); } }\n"
     ".banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }\n"
-    ".banner-logo-container { position: relative; display: inline-block; }\n"
-    ".banner img { animation: floatDynamic 5s ease-in-out infinite; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }\n"
-    ".granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); animation: cupBounce 3.5s ease-in-out infinite; }\n"
-    ".granizado-avatar-vaso::before { content: ''; position: absolute; top: -14px; left: -6px; right: -6px; height: 22px; background: #ffffff; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }\n"
-    ".granizado-avatar-vaso::after { content: ''; position: absolute; top: -32px; right: 22px; width: 8px; height: 45px; background: #10b981; transform: rotate(25deg); border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }\n"
-    ".avatar-emoji { font-size: 38px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }\n"
+    ".banner-logo-container { position: relative; display: inline-block; animation: vasoAnimado 4s ease-in-out infinite; }\n"
+    ".vaso-granizado { width: 90px; height: 110px; background: linear-gradient(180deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%); border-radius: 10px 10px 25px 25px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3); border: 2px solid rgba(255,255,255,0.8); }\n"
+    ".vaso-granizado::before { content: ''; position: absolute; top: -10px; left: -4px; right: -4px; height: 16px; background: #f8fafc; border-radius: 50%; border: 2px solid #e2e8f0; }\n"
+    ".vaso-granizado::after { content: ''; position: absolute; top: -35px; right: 15px; width: 6px; height: 50px; background: #f59e0b; transform: rotate(25deg); border-radius: 3px; box-shadow: 2px 2px 4px rgba(0,0,0,0.1); }\n"
+    ".vaso-emoji { font-size: 34px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }\n"
     ".floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }\n"
     ".floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }\n"
     ".banner-texto { flex: 1; }\n"
@@ -287,6 +298,7 @@ CSS_GENERAL = (
     ".banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); animation: pulseGlow 4s infinite ease-in-out; }\n"
     ".banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }\n"
     ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }\n"
+    ".frase-motivadora { background: linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%); border: 1px solid #c7d2fe; border-radius: 16px; padding: 12px 20px; color: #312e81; font-weight: 600; font-size: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }\n"
     ".cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }\n"
     ".cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }\n"
     ".cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }\n"
@@ -309,15 +321,11 @@ def tile(etiqueta, valor, color):
 
 
 def logo_html():
-    if LOGO.exists():
-        b64 = base64.b64encode(LOGO.read_bytes()).decode()
-        inner = f'<img src="data:image/png;base64,{b64}" alt="Avatar Granizados PL">'
-    else:
-        inner = '<div class="granizado-avatar-vaso"><span class="avatar-emoji">🍧</span></div>'
-    
-    return f"""
+    return """
     <div class="banner-logo-container">
-        {inner}
+        <div class="vaso-granizado">
+            <span class="vaso-emoji">🍧</span>
+        </div>
         <div class="floating-badge-1">⭐ 100%</div>
         <div class="floating-badge-2">⚡ Rápido</div>
     </div>
@@ -332,6 +340,10 @@ def encabezado():
         '<div class="banner-sub">Sistema de Punto de Venta Inteligente · Túquerres, Nariño</div></div>'
         f'<div class="banner-ventas"><span>Ventas de hoy</span><b>{dinero_html(total_hoy)}</b></div></div>',
         unsafe_allow_html=True)
+    
+    # Mostrar la frase motivadora del día/inicio
+    frase = st.session_state.get("frase_del_dia", "¡Bienvenido a Granizados PL!")
+    st.markdown(f'<div class="frase-motivadora">{frase}</div>', unsafe_allow_html=True)
 
 
 def alerta_inventario():
@@ -689,7 +701,7 @@ with tab_cierre:
     st.markdown("### Resumen del día")
     col_c1, col_c2, col_c3, col_c4 = st.columns(4)
     col_c1.metric("Ventas totales", dinero(r_cierre["neto"] + r_cierre["gastos_total"]), border=True)
-    col_c2.metric("Efectivo ventas", dinero(r_c_efectivo := r_cierre["efectivo"]), border=True) # safe eval
+    col_c2.metric("Efectivo ventas", dinero(r_cierre["efectivo"]), border=True)
     col_c3.metric("Transferencias", dinero(r_cierre["transferencias"]), border=True)
     col_c4.metric("Gastos totales", dinero(r_cierre["gastos_total"]), border=True)
 
