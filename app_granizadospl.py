@@ -364,4 +364,109 @@ def encabezado():
     total_hoy = suma(ventas_vigentes(hoy(), hoy()))
     st.markdown(
         f'<div class="banner">{logo_html()}<div class="banner-texto">'
-        '<div class="banner-titulo">Granizados PL
+        '<div class="banner-titulo">Granizados PL</div>'
+        '<div class="banner-sub">Sistema de Punto de Venta Inteligente Cloud · Túquerres, Nariño</div></div>'
+        f'<div class="banner-ventas"><span>Ventas de hoy</span><b>{dinero_html(total_hoy)}</b></div></div>',
+        unsafe_allow_html=True)
+    
+    frases_json = json.dumps(FRASES_MOTIVADORAS)
+    components.html(f"""
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%); border: 1px solid #c7d2fe; border-radius: 16px; padding: 14px 20px; color: #312e81; font-weight: 600; font-size: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); position: relative; overflow: hidden;">
+            <div id="frase-texto" style="transition: opacity 0.5s ease-in-out;">Cargando motivación...</div>
+            <div style="position: absolute; bottom: 0; left: 0; height: 3px; background: #6366f1; width: 100%; transition: width 60s linear;" id="barra-progreso"></div>
+        </div>
+        <script>
+            const frases = {frases_json};
+            let index = Math.floor(Math.random() * frases.length);
+            const el = document.getElementById("frase-texto");
+            const barra = document.getElementById("barra-progreso");
+
+            function actualizarFrase() {{
+                el.style.opacity = 0;
+                setTimeout(() => {{
+                    el.innerText = frases[index];
+                    el.style.opacity = 1;
+                    index = (index + 1) % frases.length;
+                }}, 500);
+
+                barra.style.transition = 'none';
+                barra.style.width = '0%';
+                setTimeout(() => {{
+                    barra.style.transition = 'width 60s linear';
+                    barra.style.width = '100%';
+                }}, 50);
+            }}
+
+            actualizarFrase();
+            setInterval(actualizarFrase, 60000);
+        </script>
+    """, height=75)
+
+
+def alerta_inventario():
+    bajo = [(p, int(q)) for p, q in st.session_state.inventario.items() if int(q) <= UMBRAL_BAJO and p not in EXTRAS]
+    if not bajo:
+        return
+    agotados = sum(1 for _, q in bajo if q == 0)
+    titulo = f"⚠️ {len(bajo)} productos con poco stock" + (f" · {agotados} agotados" if agotados else "")
+    grupos = {"🍧 Sabores": [], "🥤 Insumos": []}
+    for p, q in sorted(bajo, key=lambda x: (x[1], x[0])):
+        grupos["🍧 Sabores" if p.startswith("Sabor ") else "🥤 Insumos"].append((p.removeprefix("Sabor "), q))
+    with st.expander(titulo):
+        for col, (nombre, items) in zip(st.columns(2), grupos.items()):
+            with col:
+                st.markdown(f"**{nombre}** ({len(items)})")
+                if not items:
+                    st.caption("Todo en orden")
+                for p, q in items:
+                    estado = "agotado" if q == 0 else f"{q} und"
+                    st.markdown(f":{'red' if q == 0 else 'orange'}[●] {p}: **{estado}**")
+
+
+def elegir(etiqueta, opciones, defecto, clave, **kw):
+    valor = st.segmented_control(etiqueta, opciones, default=defecto, key=clave, **kw)
+    if valor is None:
+        return defecto
+    return valor
+
+
+CFG_DINERO = {c: st.column_config.NumberColumn(c, format="$ %d") for c in
+              ["Total", "Precio unitario", "Costo unitario", "Valor", "Efectivo", "Transferencias", "Gastos", "Saldo neto estimado", "Caja en efectivo", "Efectivo contado", "Diferencia"]}
+
+
+def tabla(df):
+    st.dataframe(df, hide_index=True, use_container_width=True, column_config=CFG_DINERO)
+
+
+def sin_consumos(registros):
+    return pd.DataFrame([{k: v for k, v in r.items() if k != "Consumos"} for r in registros])
+
+
+# ------------------------------------------------------------------------ APP
+encabezado()
+alerta_inventario()
+
+tab_ventas, tab_inventario, tab_historial, tab_caja, tab_reportes, tab_cierre = st.tabs(
+    ["🛒 Ventas", "📦 Inventario", "🧾 Historial", "💵 Caja y compras", "📊 Reportes", "🔒 Cerrar caja"])
+
+# ---------------------------------------------------------------------- VENTAS
+with tab_ventas:
+    col_form, col_cobro = st.columns([2, 1], gap="large")
+    with col_form:
+        with st.container(border=True):
+            st.subheader("Nueva venta rápida")
+            categoria = elegir("1. Elige la categoría", list(SABORES), "SIN ALCOHOL", "categoria_venta",
+                               format_func=lambda c: f"{c.title()} · {dinero(PRECIOS_VENTA[c])}")
+            st.markdown(f'<span class="chip-cat" style="background:{COLORES[categoria]}">{categoria.title()}</span>', unsafe_allow_html=True)
+            sabores = list(dict.fromkeys(SABORES[categoria]))
+            sabor = st.pills("2. Toca un sabor", sabores, default=sabores[0], key=f"sabor_venta_{categoria}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                presentacion = elegir("Presentación", ["Vaso 12 oz", "Sachet 12 oz"], "Vaso 12 oz", "presentacion_venta")
+            with c2:
+                metodo_pago = elegir("Medio de pago", METODOS_PAGO, METODOS_PAGO[0], "pago_venta",
+                                     format_func=lambda m: "Efectivo" if m == "Efectivo" else "Nequi / Billeteras")
+            with c3:
+                cantidad = st.number_input("Cantidad", min_value=1, max_value=50, value=1, step=1, key="cantidad_venta")
+            
+            incluir_bolsa = st.checkbox("
