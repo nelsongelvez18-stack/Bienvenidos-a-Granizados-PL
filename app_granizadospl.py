@@ -1,4 +1,3 @@
-
 import base64
 import hmac
 import json
@@ -728,3 +727,4 @@ with tab_cierre:
         st.session_state.cierres_caja.append(cierre_data)
         guardar_registro_supabase("cierres_caja", cierre_data)
         avisar("¡Cierre de caja guardado con éxito!", "🔒")
+¿Pudiste guardar y recargar la aplicación en Streamlit Cloud? Cuéntame si ya te pide la pantalla de login con la clave admin123.
