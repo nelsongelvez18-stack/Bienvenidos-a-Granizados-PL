@@ -1,9 +1,0 @@
-import streamlit as st
-
-st.markdown("""
-<style>
-    .stApp {
-        background: #f2f5fb;
-    }
-</style>
-""", unsafe_allow_html=True)
