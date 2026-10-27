@@ -564,10 +564,17 @@ with tab_caja:
             if st.button("Registrar compra de granizados", type="primary"):
                 prod = clave_sabor(sabor_c)
                 cid = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-                st.session_state.compras.append({"ID": cid, "Fecha": ahora(), "Categoría": cat_c, "Sabor": sabor_c, "Producto": prod, "Cantidad": int(cant_c), "Costo unitario": costo_u, "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Estado": "Vigente"})
+                st.session_state.compras.append({
+                    "ID": cid, "Fecha": ahora(), "Categoría": cat_c, "Sabor": sabor_c, 
+                    "Producto": prod, "Cantidad": int(cant_c), "Costo unitario": costo_u, 
+                    "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Estado": "Vigente"
+                })
                 st.session_state.inventario[prod] = int(st.session_state.inventario.get(prod, 0)) + int(cant_c)
                 registrar_movimiento(prod, "Entrada por compra", cant_c, det_c, cid)
-                st.session_state.gastos.append({"ID": "G-" + cid, "Fecha": ahora(), "Concepto": f"Compra granizado: {sabor_c}", "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Compra ID": cid, "Anulado": False})
+                st.session_state.gastos.append({
+                    "ID": "G-" + cid, "Fecha": ahora(), "Concepto": f"Compra granizado: {sabor_c}", 
+                    "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Compra ID": cid, "Anulado": False
+                })
                 guardar_datos()
                 avisar(f"Compra registrada por {dinero(total_c)} y sumada al inventario.", "🛒")
                 
@@ -589,8 +596,9 @@ with tab_caja:
                     st.session_state.inventario[adicion_elegida] = int(st.session_state.inventario.get(adicion_elegida, 0)) + int(porciones_adic)
                     registrar_movimiento(adicion_elegida, "Entrada por compra de adición", porciones_adic, det_adic, gid)
                     st.session_state.gastos.append({
-                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra topping: {adicion_elegida}", "Valor": int(valor_adic),
-                        "Medio de pago": medio_adic, "Detalle": det_adic, "Producto": adicion_elegida, "Unidades": int(porciones_adic), "Anulado": False
+                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra topping: {adicion_elegida}", 
+                        "Valor": int(valor_adic), "Medio de pago": medio_adic, "Detalle": det_adic, 
+                        "Producto": adicion_elegida, "Unidades": int(porciones_adic), "Anulado": False
                     })
                     guardar_datos()
                     avisar(f"Compra de {adicion_elegida} registrada ({porciones_adic} porciones sumadas).", "🎉")
@@ -614,5 +622,108 @@ with tab_caja:
                     st.session_state.inventario[insumo_elegido] = int(st.session_state.inventario.get(insumo_elegido, 0)) + int(cantidad_insumo)
                     registrar_movimiento(insumo_elegido, "Entrada por compra de insumo", cantidad_insumo, det_insumo, gid)
                     st.session_state.gastos.append({
-                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra insumo: {insumo_elegido}", "Valor": int(valor_insumo),
-                        "Medio de pago": medio_insumo, "Detalle": det_insumo, "Producto": insumo_elegido, "Unidades":
+                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra insumo: {insumo_elegido}", 
+                        "Valor": int(valor_insumo), "Medio de pago": medio_insumo, "Detalle": det_insumo, 
+                        "Producto": insumo_elegido, "Unidades": int(cantidad_insumo), "Anulado": False
+                    })
+                    guardar_datos()
+                    avisar(f"Compra de {insumo_elegido} registrada ({cantidad_insumo} unidades sumadas).", "🥤")
+
+    with st.expander("Registrar otro gasto general (servicios, transporte, etc.)"):
+        with st.form("form_gasto_general", clear_on_submit=True):
+            concepto_g = st.text_input("Concepto del gasto")
+            valor_g = st.number_input("Valor ($)", min_value=0, value=0, step=500)
+            metodo_g = st.selectbox("Medio de pago", METODOS_PAGO)
+            det_g = st.text_input("Detalle")
+            enviar_g = st.form_submit_button("Guardar gasto")
+        if enviar_g:
+            if not concepto_g.strip() or valor_g <= 0:
+                st.error("Indica concepto y valor.")
+            else:
+                gid = "G-GEN-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
+                st.session_state.gastos.append({
+                    "ID": gid, "Fecha": ahora(), "Concepto": concepto_g.strip(), 
+                    "Valor": int(valor_g), "Medio de pago": metodo_g, "Detalle": det_g, "Anulado": False
+                })
+                guardar_datos()
+                avisar("Gasto general registrado.", "💸")
+
+    st.subheader("Gastos y Compras de hoy")
+    gastos_hoy = r["gastos"]
+    if gastos_hoy:
+        tabla(pd.DataFrame(gastos_hoy[::-1]).drop(columns=["ID", "Anulado"], errors="ignore"))
+        st.download_button("Descargar gastos CSV", pd.DataFrame(gastos_hoy).to_csv(index=False).encode("utf-8-sig"), "gastos_granizados_pl.csv", "text/csv")
+    else:
+        st.info("No hay gastos registrados hoy.")
+
+# --------------------------------------------------------------------- REPORTES
+with tab_reportes:
+    st.header("Reportes")
+    col1, col2 = st.columns(2)
+    desde = col1.date_input("Desde", value=hoy(), key="reporte_desde")
+    hasta = col2.date_input("Hasta", value=hoy(), key="reporte_hasta")
+    if desde > hasta:
+        st.error("La fecha inicial no puede ser posterior a la fecha final.")
+    else:
+        periodo = ventas_vigentes(desde, hasta)
+        a, b, c = st.columns(3)
+        a.metric("Ventas vigentes", len(periodo), border=True)
+        b.metric("Unidades vendidas", suma(periodo, "Cantidad"), border=True)
+        c.metric("Ingresos", dinero(suma(periodo)), border=True)
+        if periodo:
+            dfp = sin_consumos(periodo)
+            tabla(dfp.drop(columns=["ID"], errors="ignore"))
+            st.subheader("Ingresos por categoría")
+            st.bar_chart(pd.DataFrame(periodo).groupby("Categoría")["Total"].sum())
+            st.download_button("Descargar reporte CSV", dfp.to_csv(index=False).encode("utf-8-sig"), "reporte_ventas_granizados_pl.csv", "text/csv")
+        else:
+            st.info("No hay ventas vigentes para el período seleccionado.")
+
+# ----------------------------------------------------------------------- CIERRE
+with tab_cierre:
+    st.header("Cerrar caja")
+    st.write("Genera un resumen diario. El cierre se guarda en el historial.")
+    fecha_cierre = st.date_input("Fecha que desea cerrar", value=hoy(), key="fecha_cierre_input")
+    r_cierre = resumen_dia(fecha_cierre)
+    
+    st.markdown("### Resumen del día")
+    col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+    col_c1.metric("Ventas totales", dinero(r_cierre["neto"] + r_cierre["gastos_total"]), border=True)
+    col_c2.metric("Efectivo ventas", dinero(r_c_efectivo := r_cierre["efectivo"]), border=True) # safe eval
+    col_c3.metric("Transferencias", dinero(r_cierre["transferencias"]), border=True)
+    col_c4.metric("Gastos totales", dinero(r_cierre["gastos_total"]), border=True)
+
+    col_c5, col_c6, col_c7 = st.columns(3)
+    col_c5.metric("Caja en efectivo esperada", dinero(r_cierre["caja_efectivo"]), border=True)
+    col_c6.metric("Unidades vendidas", r_cierre["unidades"], border=True)
+    
+    efectivo_contado = col_c7.number_input("Efectivo contado en caja ($)", min_value=0, value=max(0, int(r_cierre["caja_efectivo"])), step=500, key="efectivo_contado_cierre")
+    
+    diferencia = efectivo_contado - r_cierre["caja_efectivo"]
+    if diferencia != 0:
+        st.warning(f"Diferencia en efectivo: {dinero(diferencia)}")
+    else:
+        st.success("¡Caja cuadrada perfectamente!")
+
+    observacion_cierre = st.text_input("Observación del cierre (opcional)", key="obs_cierre")
+
+    if st.button("Guardar cierre de caja", type="primary"):
+        cierre_id = f"CIERRE-{fecha_cierre}"
+        existente = next((c for c in st.session_state.cierres_caja if c.get("Fecha cierre") == str(fecha_cierre)), None)
+        nuevo_cierre = {
+            "ID": cierre_id, "Fecha cierre": str(fecha_cierre), "Fecha registro": ahora(),
+            "Ventas": len(r_cierre["ventas"]), "Efectivo": r_cierre["efectivo"], "Transferencias": r_cierre["transferencias"],
+            "Gastos": r_cierre["gastos_total"], "Caja en efectivo": r_cierre["caja_efectivo"],
+            "Efectivo contado": efectivo_contado, "Diferencia": diferencia, "Saldo neto estimado": r_cierre["neto"],
+            "Observación": observacion_cierre, "Desactualizado": False
+        }
+        if existente:
+            st.session_state.cierres_caja = [nuevo_cierre if c.get("Fecha cierre") == str(fecha_cierre) else c for c in st.session_state.cierres_caja]
+        else:
+            st.session_state.cierres_caja.append(nuevo_cierre)
+        guardar_datos()
+        avisar(f"Cierre de caja del {fecha_cierre} guardado correctamente.", "🔒")
+
+    if st.session_state.cierres_caja:
+        st.subheader("Historial de cierres de caja")
+        tabla(pd.DataFrame(st.session_state.cierres_caja[::-1]).drop(columns=["ID"], errors="ignore"))
