@@ -1,3 +1,4 @@
+Python
 import base64
 import hmac
 import json
@@ -172,10 +173,6 @@ if "compras" not in st.session_state:
     st.session_state.compras = cargar_tabla_supabase("compras")
 
 
-def guardar_datos():
-    pass
-
-
 def avisar(mensaje, icono=None):
     st.session_state["_aviso"] = (mensaje, icono)
     st.rerun()
@@ -183,12 +180,13 @@ def avisar(mensaje, icono=None):
 
 def verificar_acceso():
     try:
-        clave = st.secrets.get("clave_app", None)
+        clave = st.secrets.get("clave_app", "admin123")
     except Exception:
-        clave = None
-    if not clave or st.session_state.get("acceso_ok"):
+        clave = "admin123"
+
+    if st.session_state.get("acceso_ok"):
         return
-    
+
     CSS_LOGIN = """
     .login-container { 
         max-width: 420px; 
