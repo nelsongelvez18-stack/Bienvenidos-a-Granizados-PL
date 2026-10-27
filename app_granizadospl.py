@@ -16,26 +16,31 @@ def init_supabase() -> Client:
     key = st.secrets["supabase"]["key"]
     return create_client(url.strip(), key.strip())
 
-# Función para asegurar automáticamente que el usuario admin existe con hash bcrypt válido
+# Función para asegurar automáticamente el usuario admin y actualizar su hash bcrypt
 def asegurar_usuario_admin():
     try:
         supabase = init_supabase()
-        res = supabase.table("usuarios").select("*").eq("username", "admin").execute()
-        
-        # Generar hash fresco y seguro con bcrypt para 'admin123'
+        # Generar un hash fresco y seguro con bcrypt para 'admin123'
         hashed_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
+        res = supabase.table("usuarios").select("*").eq("username", "admin").execute()
+        
         if not res.data:
+            # Si no existe, lo creamos
             supabase.table("usuarios").insert({
                 "username": "admin",
                 "password_hash": hashed_password,
                 "rol": "Administrador"
             }).execute()
+        else:
+            # Si ya existe, actualizamos su contraseña al hash correcto actual
+            supabase.table("usuarios").update({
+                "password_hash": hashed_password
+            }).eq("username", "admin").execute()
     except Exception as e:
-        # Si la tabla aún no existe o hay un problema de conexión, se maneja de forma silenciosa
         pass
 
-# Ejecutar verificación de admin al iniciar
+# Ejecutar verificación y actualización de admin al iniciar
 asegurar_usuario_admin()
 
 # Estado de sesión para control de acceso
