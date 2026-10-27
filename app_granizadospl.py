@@ -311,21 +311,22 @@ def consumos_venta(sabor, presentacion, incluir_bolsa):
     return consumos
 
 
-# --------------------------------------------------------------------- ESTILO LUMINOSO Y DINÁMICO
+# --------------------------------------------------------------------- ESTILO LUMINOSO Y DINÁMICO (BANNER AMARILLO Y LOGO FLOTANTE)
 CSS_GENERAL = (
     "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');"
     "html, body, [class*='css'] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }"
     ".block-container { padding-top: 1.5rem; max-width: 1250px; }"
-    ".banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }"
-    ".banner-logo-container { position: relative; display: inline-block; }"
-    ".banner img { box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }"
-    ".granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); }"
+    ".banner { background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); border: 1px solid #facc15; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #713f12; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(234, 179, 8, 0.2); position: relative; overflow: visible; }"
+    ".banner-logo-container { position: relative; display: inline-block; margin-top: -20px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.15)); transition: transform 0.3s ease; }"
+    ".banner-logo-container:hover { transform: translateY(-5px); }"
+    ".banner img { border-radius: 22px; width: 130px; height: 130px; object-fit: cover; border: 3px solid #ffffff; }"
+    ".granizado-avatar-vaso { width: 120px; height: 125px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; }"
     ".banner-texto { flex: 1; }"
-    ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }"
-    ".banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }"
-    ".banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); }"
-    ".banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }"
-    ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }"
+    ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #713f12; letter-spacing: -0.5px; }"
+    ".banner-sub { font-size: 16px; font-weight: 600; color: #854d0e; margin-top: 6px; }"
+    ".banner-ventas { background: #ffffff; border: 2px solid #ca8a04; color: #713f12; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(202, 138, 4, 0.15); }"
+    ".banner-ventas span { display: block; font-size: 12px; color: #854d0e; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }"
+    ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #a16207; margin-top: 4px; }"
     ".cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }"
     ".cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }"
     ".cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }"
@@ -368,9 +369,9 @@ def encabezado():
     
     frases_json = json.dumps(FRASES_MOTIVADORAS)
     components.html(f"""
-        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%); border: 1px solid #c7d2fe; border-radius: 16px; padding: 14px 20px; color: #312e81; font-weight: 600; font-size: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); position: relative; overflow: hidden;">
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 16px; padding: 14px 20px; color: #713f12; font-weight: 600; font-size: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.1); position: relative; overflow: hidden;">
             <div id="frase-texto" style="transition: opacity 0.5s ease-in-out;">Cargando motivación...</div>
-            <div style="position: absolute; bottom: 0; left: 0; height: 3px; background: #6366f1; width: 100%; transition: width 60s linear;" id="barra-progreso"></div>
+            <div style="position: absolute; bottom: 0; left: 0; height: 3px; background: #ca8a04; width: 100%; transition: width 60s linear;" id="barra-progreso"></div>
         </div>
         <script>
             const frases = {frases_json};
@@ -553,15 +554,29 @@ with tab_inventario:
         render_sub_inventario(keys_insumos, "Insumos y Otros Artículos")
         
     with sub_inv_corr:
-        st.subheader("Corrección y Ajuste Directo de Inventario")
-        st.caption("Usa este formulario para corregir errores de ingresos en compras o restablecer productos a cero (0).")
+        st.subheader("Corrección y Ajuste Directo de Inventario por Categorías")
+        st.caption("Selecciona la categoría y luego el producto individual para corregir existencias.")
+        
+        cat_corr = st.selectbox("1. Elige la categoría del producto", ["Sin alcohol", "Con alcohol", "Cremosos", "Adicionales y toppings", "Insumos y otros"], key="cat_corr_sel")
+        
+        if cat_corr == "Sin alcohol":
+            lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_sin_alcohol])
+        elif cat_corr == "Con alcohol":
+            lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_con_alcohol])
+        elif cat_corr == "Cremosos":
+            lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_cremosos])
+        elif cat_corr == "Adicionales y toppings":
+            lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_extras])
+        else:
+            lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_insumos])
+
         with st.form("form_correccion_stock"):
-            prod_corr = st.selectbox("Selecciona el producto a corregir", sorted(st.session_state.inventario.keys()))
+            prod_corr = st.selectbox("2. Selecciona el producto individual", lista_prods_corr)
             stock_actual = int(st.session_state.inventario.get(prod_corr, 0))
             st.info(f"Existencias actuales de **{prod_corr}**: **{stock_actual} unidades**")
             
             nueva_cantidad = st.number_input("Nueva cantidad exacta", min_value=0, max_value=100000, value=stock_actual, step=1)
-            detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en compra anterior")
+            detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en inventario")
             
             btn_guardar_corr = st.form_submit_button("Actualizar y guardar cantidad", type="primary")
             
