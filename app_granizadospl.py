@@ -165,4 +165,49 @@ def registrar_anulacion(tipo, identificador, detalle):
 
 def ventas_vigentes(desde=None, hasta=None):
     resultado = []
-    for v in st.session_state.ventas
+    for v in st.session_state.ventas:
+        if v.get("Estado", "Vigente") != "Vigente":
+            continue
+        f = v.get("Fecha", "")[:10]
+        if (desde and f < str(desde)) or (hasta and f > str(hasta)):
+            continue
+        resultado.append(v)
+    return resultado
+
+
+def compras_vigentes():
+    return [c for c in st.session_state.compras if c.get("Estado", "Vigente") == "Vigente"]
+
+
+def gastos_vigentes(fecha=None):
+    return [g for g in st.session_state.gastos if not g.get("Anulado", False) and (fecha is None or g.get("Fecha", "")[:10] == str(fecha))]
+
+
+def resumen_dia(fecha):
+    f = str(fecha)
+    ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
+    efectivo = suma([v for v in ventas if v.get("Medio de pago") == "Efectivo"])
+    transf = suma([v for v in ventas if v.get("Medio de pago") != "Efectivo"])
+    gastos_total = suma(gastos, "Valor")
+    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago") == "Efectivo"], "Valor")
+    return {"ventas": ventas, "gastos": gastos, "efectivo": efectivo, "transferencias": transf,
+            "gastos_total": gastos_total, "caja_efectivo": efectivo - gastos_efectivo,
+            "neto": efectivo + transf - gastos_total, "unidades": suma(ventas, "Cantidad")}
+
+
+def marcar_cierre_desactualizado(fecha):
+    for c in st.session_state.cierres_caja:
+        if c.get("Fecha cierre") == fecha:
+            c["Desactualizado"] = True
+
+
+def anular_venta(venta_id):
+    venta = next((v for v in st.session_state.ventas if v.get("ID") == venta_id and v.get("Estado", "Vigente") == "Vigente"), None)
+    if not venta:
+        return False, "No se encontró la venta vigente."
+    for producto, cantidad in venta.get("Consumos", {}).items():
+        st.session_state.inventario[producto] = int(st.session_state.inventario.get(producto, 0)) + int(cantidad)
+        registrar_movimiento(producto, "Entrada por anulación de venta", cantidad, "Devolución de inventario", venta_id)
+    venta["Estado"], venta["Fecha anulación"] = "Anulada", ahora()
+    marcar_cierre_desactualizado(venta["Fecha"][:10])
+    registrar_anulacion("Venta", venta_id, "Venta anulada")
