@@ -123,12 +123,18 @@ def verificar_acceso():
     if not clave or st.session_state.get("acceso_ok"):
         return
     
-    CSS_LOGIN = (
-        ".login-container { max-width: 420px; margin: 100px auto; padding: 35px; "
-        "background: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; "
-        "box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04); "
-        "text-align: center; }"
-    )
+    CSS_LOGIN = """
+    .login-container { 
+        max-width: 420px; 
+        margin: 100px auto; 
+        padding: 35px; 
+        background: #ffffff; 
+        border: 1px solid #e2e8f0; 
+        border-radius: 24px; 
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+        text-align: center; 
+    }
+    """
     st.markdown(f"<style>{CSS_LOGIN}</style>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -275,37 +281,41 @@ def consumos_venta(sabor, presentacion, incluir_bolsa):
 
 
 # --------------------------------------------------------------------- ESTILO LUMINOSO Y DINÁMICO
-CSS_GENERAL = (
-    "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');\n"
-    "html, body, [class*=\"css\"] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }\n"
-    ".block-container { padding-top: 1.5rem; max-width: 1250px; }\n"
-    "@keyframes floatDynamic { 0% { transform: translateY(0px) rotate(0deg) scale(1); } 33% { transform: translateY(-10px) rotate(2deg) scale(1.02); } 66% { transform: translateY(5px) rotate(-2deg) scale(0.98); } 100% { transform: translateY(0px) rotate(0deg) scale(1); } }\n"
-    "@keyframes pulseGlow { 0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } 50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.4); } 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } }\n"
-    "@keyframes floatBadge1 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-8px, -12px) rotate(5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
-    "@keyframes floatBadge2 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(10px, 8px) rotate(-5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
-    ".banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }\n"
-    ".banner-logo-container { position: relative; display: inline-block; }\n"
-    ".banner img { animation: floatDynamic 5s ease-in-out infinite; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }\n"
-    ".granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); animation: floatDynamic 5s ease-in-out infinite; }\n"
-    ".granizado-avatar-vaso::before { content: ''; position: absolute; top: -14px; left: -6px; right: -6px; height: 22px; background: #ffffff; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }\n"
-    ".granizado-avatar-vaso::after { content: ''; position: absolute; top: -32px; right: 22px; width: 8px; height: 45px; background: #10b981; transform: rotate(25deg); border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }\n"
-    ".avatar-emoji { font-size: 38px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }\n"
-    ".floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }\n"
-    ".floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }\n"
-    ".banner-texto { flex: 1; }\n"
-    ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }\n"
-    ".banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }\n"
-    ".banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); animation: pulseGlow 4s infinite ease-in-out; }\n"
-    ".banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }\n"
-    ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }\n"
-    ".cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }\n"
-    ".cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }\n"
-    ".cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }\n"
-    ".cobro p { margin: 8px 0 0; font-size: 14px; color: #6366f1; font-weight: 600; }\n"
-    ".tile { padding: 18px 22px; border-radius: 20px; color: #ffffff; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.2s; }\n"
-    ".tile:hover { transform: translateY(-3px); }\n"
-    ".tile span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.5px; }\n"
-    ".tile b { display: block; font: 700 28px 'Outfit', sans-serif; margin-top: 4px; }\n"
-    ".chip-cat { display: inline-block; border-radius: 999px; padding: 6px 18px; font-weight: 700; color: #ffffff; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }\n"
-    "[data-testid=\"stBaseButton-primary\"] { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 0; min-height: 3.5rem; border-radius: 16px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35); transition: all 0.3s; }\n"
-    "[data-testid=\"stBaseButton-primary\"]:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); box-
+CSS_GENERAL = """
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }
+.block-container { padding-top: 1.5rem; max-width: 1250px; }
+@keyframes floatDynamic { 0% { transform: translateY(0px) rotate(0deg) scale(1); } 33% { transform: translateY(-10px) rotate(2deg) scale(1.02); } 66% { transform: translateY(5px) rotate(-2deg) scale(0.98); } 100% { transform: translateY(0px) rotate(0deg) scale(1); } }
+@keyframes pulseGlow { 0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } 50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.4); } 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } }
+@keyframes floatBadge1 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-8px, -12px) rotate(5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
+@keyframes floatBadge2 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(10px, 8px) rotate(-5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
+.banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }
+.banner-logo-container { position: relative; display: inline-block; }
+.banner img { animation: floatDynamic 5s ease-in-out infinite; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }
+.granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); animation: floatDynamic 5s ease-in-out infinite; }
+.granizado-avatar-vaso::before { content: ''; position: absolute; top: -14px; left: -6px; right: -6px; height: 22px; background: #ffffff; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+.granizado-avatar-vaso::after { content: ''; position: absolute; top: -32px; right: 22px; width: 8px; height: 45px; background: #10b981; transform: rotate(25deg); border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+.avatar-emoji { font-size: 38px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+.floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+.floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
+.banner-texto { flex: 1; }
+.banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }
+.banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }
+.banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); animation: pulseGlow 4s infinite ease-in-out; }
+.banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }
+.banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }
+.cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }
+.cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }
+.cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }
+.cobro p { margin: 8px 0 0; font-size: 14px; color: #6366f1; font-weight: 600; }
+.tile { padding: 18px 22px; border-radius: 20px; color: #ffffff; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); transition: transform 0.2s; }
+.tile:hover { transform: translateY(-3px); }
+.tile span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.5px; }
+.tile b { display: block; font: 700 28px 'Outfit', sans-serif; margin-top: 4px; }
+.chip-cat { display: inline-block; border-radius: 999px; padding: 6px 18px; font-weight: 700; color: #ffffff; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+[data-testid="stBaseButton-primary"] { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 0; min-height: 3.5rem; border-radius: 16px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35); transition: all 0.3s; }
+[data-testid="stBaseButton-primary"]:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); box-shadow: 0 12px 25px rgba(99, 102, 241, 0.5); transform: translateY(-2px); }
+[data-testid="stBaseButton-primary"] p { color: #ffffff; font-weight: 700; font-size: 16px; letter-spacing: 0.3px; }
+div[data-testid="stMetric"] { background: #ffffff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+"""
+st.markdown(f"<style>{CSS_
