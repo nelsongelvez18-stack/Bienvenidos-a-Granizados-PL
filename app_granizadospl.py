@@ -469,4 +469,264 @@ with tab_ventas:
             with c3:
                 cantidad = st.number_input("Cantidad", min_value=1, max_value=50, value=1, step=1, key="cantidad_venta")
             
-            incluir_bolsa = st.checkbox("
+            incluir_bolsa = st.checkbox("Incluir bolsa de papel", value=True, key="bolsa_venta")
+
+            c4, c5 = st.columns(2)
+            cliente = c4.text_input("Cliente (opcional)", key="cliente_venta")
+            observacion = c5.text_input("Observación (opcional)", key="obs_venta")
+
+    precio_unitario = PRECIOS_VENTA[categoria]
+    total = precio_unitario * int(cantidad)
+    with col_cobro:
+        pago_corto = "Efectivo" if metodo_pago == "Efectivo" else "Nequi"
+        st.markdown(
+            f'<div class="cobro"><span>Total a cobrar</span><b>{dinero_html(total)}</b>'
+            f'<p>{int(cantidad)} × {sabor or "—"} · {presentacion} · {pago_corto}</p></div>',
+            unsafe_allow_html=True)
+        guardar_venta = st.button("Registrar Venta", type="primary", use_container_width=True, disabled=sabor is None)
+        r_hoy = resumen_dia(hoy())
+        st.markdown("**Resumen de hoy**")
+        st.markdown(
+            tile("Ventas", len(r_hoy["ventas"]), "#10b981")
+            + tile("Efectivo", dinero_html(r_hoy["efectivo"]), "#f59e0b")
+            + tile("Transferencias", dinero_html(r_hoy["transferencias"]), "#ec4899"),
+            unsafe_allow_html=True)
+
+    if guardar_venta and sabor:
+        consumos = {p: q * int(cantidad) for p, q in consumos_venta(sabor, presentacion, incluir_bolsa).items()}
+        faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumos.items()
+                     if p.startswith("Sabor ") and int(st.session_state.inventario.get(p, 0)) < q]
+        if faltantes:
+            st.error("Inventario insuficiente del sabor: " + "; ".join(f"{p}: requiere {q}, disponible {d}" for p, q, d in faltantes))
+        else:
+            venta_id = "V-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
+            for producto, unidades in consumos.items():
+                nuevo_stock = int(st.session_state.inventario.get(producto, 0)) - unidades
+                st.session_state.inventario[producto] = nuevo_stock
+                guardar_stock_supabase(producto, nuevo_stock)
+                registrar_movimiento(producto, "Salida por venta", unidades, f"Venta de {sabor}", venta_id)
+            nueva_venta = {
+                "ID": venta_id, "Fecha": ahora(), "Cliente": cliente.strip() or "Cliente general",
+                "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion,
+                "Cantidad": int(cantidad), "Precio unitario": precio_unitario, "Total": total,
+                "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones automático": "Todos los toppings",
+                "Consumos": json.dumps(consumos), "Estado": "Vigente"}
+            st.session_state.ventas.append(nueva_venta)
+            guardar_registro_supabase("ventas", nueva_venta)
+            for k in ("cantidad_venta", "cliente_venta", "obs_venta"):
+                st.session_state.pop(k, None)
+            st.balloons()
+            avisar(f"¡Venta registrada con éxito por {dinero(total)}!", "🎉")
+
+# ------------------------------------------------------------------- INVENTARIO
+with tab_inventario:
+    st.header("Gestión de Inventario")
+    st.caption("Consulta el stock categorizado y corrige existencias en caso de errores en compras.")
+    
+    sub_inv1, sub_inv2, sub_inv3, sub_inv4, sub_inv5, sub_inv_corr = st.tabs([
+        "🍧 Sin alcohol", "🍹 Con alcohol", "🍨 Cremosos", "🍬 Adicionales y toppings", "🥤 Insumos y otros", "✏️ Corrección de Stock"
+    ])
+    
+    keys_sin_alcohol = {clave_sabor(s) for s in SABORES["SIN ALCOHOL"]}
+    keys_con_alcohol = {clave_sabor(s) for s in SABORES["CON ALCOHOL"]}
+    keys_cremosos = {clave_sabor(s) for s in SABORES["CREMOSOS"]}
+    keys_extras = set(EXTRAS)
+    keys_insumos = {"Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"}
+
+    def render_sub_inventario(filtro_set, titulo_cat):
+        st.subheader(titulo_cat)
+        items = [(p, q) for p, q in st.session_state.inventario.items() if p in filtro_set]
+        df = pd.DataFrame([
+            {"Producto": p, "Existencias": int(q),
+             "Estado": "⚠️ Bajo" if int(q) <= UMBRAL_BAJO and p not in EXTRAS else ("Sin control" if p in EXTRAS else "Disponible")}
+            for p, q in sorted(items)
+        ])
+        tabla(df)
+        st.download_button(f"Descargar {titulo_cat.lower()} CSV", df.to_csv(index=False).encode("utf-8-sig"), f"inventario_{titulo_cat.lower().replace(' ', '_')}.csv", "text/csv")
+
+    with sub_inv1:
+        render_sub_inventario(keys_sin_alcohol, "Granizados Sin Alcohol")
+    with sub_inv2:
+        render_sub_inventario(keys_con_alcohol, "Granizados Con Alcohol")
+    with sub_inv3:
+        render_sub_inventario(keys_cremosos, "Granizados Cremosos")
+    with sub_inv4:
+        render_sub_inventario(keys_extras, "Adicionales y Toppings")
+    with sub_inv5:
+        render_sub_inventario(keys_insumos, "Insumos y Otros Artículos")
+        
+    with sub_inv_corr:
+        st.subheader("Corrección y Ajuste Directo de Inventario")
+        st.caption("Usa este formulario para corregir errores de ingresos en compras o restablecer productos a cero (0).")
+        with st.form("form_correccion_stock"):
+            prod_corr = st.selectbox("Selecciona el producto a corregir", sorted(st.session_state.inventario.keys()))
+            stock_actual = int(st.session_state.inventario.get(prod_corr, 0))
+            st.info(f"Existencias actuales de **{prod_corr}**: **{stock_actual} unidades**")
+            
+            nueva_cantidad = st.number_input("Nueva cantidad exacta", min_value=0, max_value=100000, value=stock_actual, step=1)
+            detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en compra anterior")
+            
+            btn_guardar_corr = st.form_submit_button("Actualizar y guardar cantidad", type="primary")
+            
+        if btn_guardar_corr:
+            if not detalle_corr.strip():
+                st.error("Debes escribir el motivo de la corrección para auditoría.")
+            else:
+                dif = nueva_cantidad - stock_actual
+                st.session_state.inventario[prod_corr] = nueva_cantidad
+                guardar_stock_supabase(prod_corr, nueva_cantidad)
+                tipo_mov = "Corrección manual a 0" if nueva_cantidad == 0 else ("Ajuste manual (aumento)" if dif > 0 else "Ajuste manual (reducción)")
+                registrar_movimiento(prod_corr, tipo_mov, abs(dif), detalle_corr)
+                avisar(f"Inventario de {prod_corr} actualizado correctamente a {nueva_cantidad}.", "✏️")
+
+# -------------------------------------------------------------------- HISTORIAL
+with tab_historial:
+    st.header("Historial de ventas")
+    efectivas = ventas_vigentes()
+    if efectivas:
+        tabla(sin_consumos(efectivas[::-1]).drop(columns=["ID"], errors="ignore"))
+        etiquetas = {v["ID"]: f"{v['Fecha'][5:16]} · {v['Sabor']} ×{v['Cantidad']} · {dinero(v['Total'])}" for v in efectivas[::-1]}
+        with st.form("form_anular_venta"):
+            id_venta = st.selectbox("Venta vigente para anular", list(etiquetas), format_func=etiquetas.get)
+            confirmar = st.checkbox("Confirmo que deseo anular esta venta")
+            enviar = st.form_submit_button("Anular venta")
+        if enviar:
+            if not confirmar:
+                st.error("Debes confirmar la anulación.")
+            else:
+                ok, mensaje = anular_venta(id_venta)
+                if ok:
+                    avisar(mensaje, "↩️")
+                else:
+                    st.error(mensaje)
+    else:
+        st.info("No hay ventas efectivas registradas.")
+    if st.session_state.anulaciones:
+        with st.expander("Registro de anulaciones (auditoría)"):
+            tabla(pd.DataFrame(st.session_state.anulaciones[::-1]))
+
+# ------------------------------------------------------------------------- CAJA Y COMPRAS
+with tab_caja:
+    st.header("Caja, Gastos y Compras")
+    r = resumen_dia(hoy())
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Ventas en efectivo", dinero(r["efectivo"]), border=True)
+    m2.metric("Transferencias", dinero(r["transferencias"]), border=True)
+    m3.metric("Gastos de hoy", dinero(r["gastos_total"]), border=True)
+    m4.metric("Efectivo en caja estimado", dinero(r["caja_efectivo"]), border=True)
+    
+    st.divider()
+    sub_caja1, sub_caja2, sub_caja3 = st.tabs(["📥 Registrar Compra", "💸 Registrar Gasto", "📋 Movimientos de Caja"])
+    
+    with sub_caja1:
+        st.subheader("Registrar Compra de Insumos / Sabores")
+        with st.form("form_registrar_compra"):
+            prod_compra = st.selectbox("Producto a comprar", sorted(st.session_state.inventario.keys()))
+            cant_compra = st.number_input("Cantidad comprada", min_value=1, value=10, step=1)
+            costo_compra = st.number_input("Costo total de la compra ($)", min_value=0.0, value=10000.0, step=500.0)
+            proveedor = st.text_input("Proveedor o fuente")
+            medio_pago_compra = st.selectbox("Medio de pago compra", METODOS_PAGO)
+            
+            btn_compra = st.form_submit_button("Registrar compra e ingresar al inventario", type="primary")
+            
+        if btn_compra:
+            compra_id = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
+            nuevo_stock = int(st.session_state.inventario.get(prod_compra, 0)) + int(cant_compra)
+            st.session_state.inventario[prod_compra] = nuevo_stock
+            guardar_stock_supabase(prod_compra, nuevo_stock)
+            registrar_movimiento(prod_compra, "Entrada por compra", cant_compra, f"Compra a {proveedor or 'Proveedor general'}", compra_id)
+            
+            nueva_compra = {
+                "ID": compra_id, "Fecha": ahora(), "Producto": prod_compra, "Cantidad": int(cant_compra),
+                "Costo total": costo_compra, "Proveedor": proveedor, "Medio de pago": medio_pago_compra, "Estado": "Vigente"
+            }
+            st.session_state.compras.append(nueva_compra)
+            guardar_registro_supabase("compras", nueva_compra)
+            
+            nuevo_gasto = {
+                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "Fecha": ahora(),
+                "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "Valor": costo_compra,
+                "Medio de pago": medio_pago_compra, "Compra ID": compra_id, "Anulado": False
+            }
+            st.session_state.gastos.append(nuevo_gasto)
+            guardar_registro_supabase("gastos", nuevo_gasto)
+            
+            avisar(f"Compra registrada y {cant_compra} unidades de {prod_compra} sumadas al inventario.", "📦")
+
+    with sub_caja2:
+        st.subheader("Registrar Gasto Operativo")
+        with st.form("form_registrar_gasto"):
+            concepto_gasto = st.text_input("Concepto o descripción del gasto")
+            valor_gasto = st.number_input("Valor del gasto ($)", min_value=0.0, value=5000.0, step=500.0)
+            medio_pago_gasto = st.selectbox("Medio de pago gasto", METODOS_PAGO, key="pago_gasto_sel")
+            
+            btn_gasto = st.form_submit_button("Registrar gasto", type="primary")
+            
+        if btn_gasto:
+            if not concepto_gasto.strip():
+                st.error("Debes escribir el concepto del gasto.")
+            else:
+                nuevo_gasto = {
+                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "Fecha": ahora(),
+                    "Concepto": concepto_gasto.strip(), "Valor": valor_gasto,
+                    "Medio de pago": medio_pago_gasto, "Compra ID": "", "Anulado": False
+                }
+                st.session_state.gastos.append(nuevo_gasto)
+                guardar_registro_supabase("gastos", nuevo_gasto)
+                avisar("Gasto registrado con éxito.", "💸")
+
+    with sub_caja3:
+        st.subheader("Movimientos de Caja y Gastos de Hoy")
+        gs = gastos_vigentes(hoy())
+        if gs:
+            tabla(pd.DataFrame(gs)[["Fecha", "Concepto", "Valor", "Medio de pago"]])
+        else:
+            st.info("No hay gastos registrados hoy.")
+
+# -------------------------------------------------------------------- REPORTES
+with tab_reportes:
+    st.header("Reportes y Estadísticas")
+    st.caption("Consulta el rendimiento financiero y analíticas de ventas.")
+    vs = ventas_vigentes()
+    if vs:
+        df_v = pd.DataFrame(vs)
+        total_gen = df_v["Total"].sum()
+        unidades_gen = df_v["Cantidad"].sum()
+        m1, m2 = st.columns(2)
+        m1.metric("Ventas acumuladas totales", dinero(total_gen), border=True)
+        m2.metric("Unidades vendidas totales", int(unidades_gen), border=True)
+        
+        st.subheader("Ventas por Categoría")
+        st.bar_chart(df_v.groupby("Categoría")["Total"].sum())
+    else:
+        st.info("Aún no hay suficientes ventas para generar reportes.")
+
+# -------------------------------------------------------------------- CIERRE DE CAJA
+with tab_cierre:
+    st.header("Cierre de Caja Diario")
+    fecha_cierre_sel = st.date_input("Fecha de cierre", value=hoy())
+    r_cierre = resumen_dia(fecha_cierre_sel)
+    
+    st.markdown(f"### Resumen para el día {fecha_cierre_sel}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Ventas totales", dinero(r_cierre["efectivo"] + r_cierre["transferencias"]))
+    c2.metric("Gastos totales", dinero(r_cierre["gastos_total"]))
+    c3.metric("Neto estimado", dinero(r_cierre["neto"]))
+    
+    efectivo_contado = st.number_input("Dinero en efectivo contado en caja ($)", min_value=0.0, value=float(r_cierre["caja_efectivo"]), step=1000.0)
+    diferencia = efectivo_contado - r_cierre["caja_efectivo"]
+    if diferencia != 0:
+        st.warning(f"Diferencia en efectivo: {dinero(diferencia)}")
+    else:
+        st.success("¡Caja cuadrada perfectamente!")
+        
+    if st.button("Guardar Cierre de Caja", type="primary"):
+        cierre_data = {
+            "Fecha cierre": str(fecha_cierre_sel), "Fecha registro": ahora(),
+            "Ventas efectivo": r_cierre["efectivo"], "Ventas transferencias": r_cierre["transferencias"],
+            "Gastos": r_cierre["gastos_total"], "Caja efectivo esperada": r_cierre["caja_efectivo"],
+            "Efectivo contado": efectivo_contado, "Diferencia": diferencia, "Desactualizado": False
+        }
+        st.session_state.cierres_caja.append(cierre_data)
+        guardar_registro_supabase("cierres_caja", cierre_data)
+        avisar("¡Cierre de caja guardado con éxito!", "🔒")
