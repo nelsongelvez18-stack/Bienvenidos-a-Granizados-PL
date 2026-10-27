@@ -617,10 +617,32 @@ with tab_caja:
     
     with sub_caja1:
         st.subheader("Registrar Compra de Insumos / Sabores")
-        with st.form("form_registrar_compra"):
-            prod_compra = st.selectbox("Producto a comprar", sorted(st.session_state.inventario.keys()))
+        comp_cat = st.selectbox("Elige la categoría de compra", ["Sin alcohol", "Con alcohol", "Cremosos", "Adicionales y toppings", "Insumos y otros"])
+        
+        if comp_cat == "Sin alcohol":
+            prod_lista = [clave_sabor(s) for s in SABORES["SIN ALCOHOL"]]
+            costo_sugerido = 3100.0
+        elif comp_cat == "Con alcohol":
+            prod_lista = [clave_sabor(s) for s in SABORES["CON ALCOHOL"]]
+            costo_sugerido = 3300.0
+        elif comp_cat == "Cremosos":
+            prod_lista = [clave_sabor(s) for s in SABORES["CREMOSOS"]]
+            costo_sugerido = 3300.0
+        elif comp_cat == "Adicionales y toppings":
+            prod_lista = EXTRAS
+            costo_sugerido = 500.0
+        else:
+            prod_lista = ["Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"]
+            costo_sugerido = 200.0
+
+        with st.form("form_registrar_compra_cat"):
+            prod_compra = st.selectbox("Producto a comprar", sorted(prod_lista))
             cant_compra = st.number_input("Cantidad comprada", min_value=1, value=10, step=1)
-            costo_compra = st.number_input("Costo total de la compra ($)", min_value=0.0, value=10000.0, step=500.0)
+            costo_unitario_compra = st.number_input("Costo unitario ($)", min_value=0.0, value=costo_sugerido, step=100.0)
+            
+            costo_total_calculado = cant_compra * costo_unitario_compra
+            st.info(f"Costo total calculado automáticamente: **{dinero(costo_total_calculado)}**")
+            
             proveedor = st.text_input("Proveedor o fuente")
             medio_pago_compra = st.selectbox("Medio de pago compra", METODOS_PAGO)
             
@@ -635,20 +657,20 @@ with tab_caja:
             
             nueva_compra = {
                 "ID": compra_id, "Fecha": ahora(), "Producto": prod_compra, "Cantidad": int(cant_compra),
-                "Costo total": costo_compra, "Proveedor": proveedor, "Medio de pago": medio_pago_compra, "Estado": "Vigente"
+                "Costo total": costo_total_calculado, "Proveedor": proveedor, "Medio de pago": medio_pago_compra, "Estado": "Vigente"
             }
             st.session_state.compras.append(nueva_compra)
             guardar_registro_supabase("compras", nueva_compra)
             
             nuevo_gasto = {
                 "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "Fecha": ahora(),
-                "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "Valor": costo_compra,
+                "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "Valor": costo_total_calculado,
                 "Medio de pago": medio_pago_compra, "Compra ID": compra_id, "Anulado": False
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
             
-            avisar(f"Compra registrada y {cant_compra} unidades de {prod_compra} sumadas al inventario.", "📦")
+            avisar(f"Compra registrada por {dinero(costo_total_calculado)} y {cant_compra} unidades de {prod_compra} sumadas.", "📦")
 
     with sub_caja2:
         st.subheader("Registrar Gasto Operativo")
