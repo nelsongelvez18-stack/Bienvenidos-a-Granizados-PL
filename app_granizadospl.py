@@ -211,3 +211,127 @@ def anular_venta(venta_id):
     venta["Estado"], venta["Fecha anulación"] = "Anulada", ahora()
     marcar_cierre_desactualizado(venta["Fecha"][:10])
     registrar_anulacion("Venta", venta_id, "Venta anulada")
+    guardar_datos()
+    return True, "Venta anulada; el inventario consumido fue devuelto."
+
+
+def anular_compra(compra_id):
+    compra = next((c for c in compras_vigentes() if c.get("ID") == compra_id), None)
+    if not compra:
+        return False, "No se encontró la compra vigente."
+    producto, cantidad = compra["Producto"], int(compra["Cantidad"])
+    disponible = int(st.session_state.inventario.get(producto, 0))
+    if disponible < cantidad:
+        return False, f"No se puede anular: hay {disponible} unidades de {producto} y se deben retirar {cantidad}."
+    st.session_state.inventario[producto] = disponible - cantidad
+    registrar_movimiento(producto, "Salida por anulación de compra", cantidad, "Reversión de compra", compra_id)
+    compra["Estado"], compra["Fecha anulación"] = "Anulada", ahora()
+    for g in st.session_state.gastos:
+        if g.get("Compra ID") == compra_id:
+            g["Anulado"] = True
+            marcar_cierre_desactualizado(g["Fecha"][:10])
+    registrar_anulacion("Compra", compra_id, "Compra anulada")
+    guardar_datos()
+    return True, "Compra anulada; se retiraron las unidades y el gasto quedó excluido."
+
+
+def anular_gasto(gasto_id):
+    gasto = next((g for g in gastos_vigentes() if g.get("ID") == gasto_id), None)
+    if not gasto:
+        return False, "No se encontró el gasto vigente."
+    if gasto.get("Compra ID"):
+        return False, "Este gasto viene de una compra; anúlalo desde la sección correspondiente."
+    producto, unidades = gasto.get("Producto"), int(gasto.get("Unidades", 0))
+    if producto and unidades:
+        disponible = int(st.session_state.inventario.get(producto, 0))
+        if disponible < unidades:
+            return False, f"No se puede anular: hay {disponible} de {producto} y se deben retirar {unidades}."
+        st.session_state.inventario[producto] = disponible - unidades
+        registrar_movimiento(producto, "Salida por anulación de gasto", unidades, "Reversión de gasto", gasto_id)
+    gasto["Anulado"], gasto["Fecha anulación"] = True, ahora()
+    marcar_cierre_desactualizado(gasto["Fecha"][:10])
+    registrar_anulacion("Gasto", gasto_id, "Gasto anulado")
+    guardar_datos()
+    return True, "Gasto anulado."
+
+
+def consumos_venta(sabor, presentacion, incluir_bolsa):
+    consumos = {
+        clave_sabor(sabor): 1,
+        "Pitillos (und)": 1
+    }
+    if incluir_bolsa:
+        consumos["Bolsa de papel (und)"] = 1
+    if presentacion == "Vaso 12 oz":
+        consumos["Vaso 12 oz (und)"] = 1
+    for extra in EXTRAS:
+        consumos[extra] = 1
+    return consumos
+
+
+# --------------------------------------------------------------------- ESTILO PRO & ANIMACIONES
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.block-container{padding-top:1.5rem;max-width:1250px}
+.bg{font-family:'Bungee',sans-serif;font-weight:400}
+
+@keyframes floatLogo {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(1deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes neonGlow {
+    0% { box-shadow: 0 0 10px rgba(255, 210, 63, 0.3), inset 0 0 15px rgba(255, 61, 154, 0.1); }
+    50% { box-shadow: 0 0 25px rgba(255, 61, 154, 0.7), inset 0 0 25px rgba(182, 255, 60, 0.2); }
+    100% { box-shadow: 0 0 10px rgba(255, 210, 63, 0.3), inset 0 0 15px rgba(255, 61, 154, 0.1); }
+}
+
+.banner{
+    background: linear-gradient(135deg, #14141c 0%, #222232 100%);
+    border: 2px solid #ffd23f;
+    border-radius:24px;
+    padding:20px 32px;
+    display:flex;
+    align-items:center;
+    gap:24px;
+    color:#fff;
+    margin-bottom:20px;
+    animation: neonGlow 5s infinite ease-in-out;
+}
+.banner img, .banner-logo {
+    animation: floatLogo 4s ease-in-out infinite;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+.banner img{width:110px;height:110px;border-radius:20px; object-fit: cover;}
+.banner-logo{width:110px;height:110px;border-radius:20px;background:linear-gradient(135deg, #ff3d9a, #ffd23f);color:#14141c;display:flex;align-items:center;justify-content:center;font:400 44px 'Bungee',sans-serif}
+.banner-texto{flex:1}
+.banner-titulo{font:400 36px/1.1 'Bungee',sans-serif; background: linear-gradient(90deg, #ffd23f, #ff8fc2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+.banner-sub{font-size:16px;font-weight:600;color:#d9d9e8;margin-top:6px; letter-spacing: 0.5px;}
+.banner-ventas{background:rgba(20, 20, 28, 0.9); border: 2px solid #b6ff3c; color:#fff;border-radius:18px;padding:16px 24px;min-width:230px; text-align: right;}
+.banner-ventas span{display:block;font-size:13px; color: #a0a0b0; text-transform: uppercase; letter-spacing: 1px;}
+.banner-ventas b{display:block;font:400 30px 'Bungee',sans-serif;color:#b6ff3c; margin-top: 4px;}
+
+.cobro{background:linear-gradient(135deg, #14141c 0%, #1f1f2e);border:3px solid #ff3d9a;border-radius:22px;padding:22px 26px;color:#fff;margin-bottom:12px; box-shadow: 0 10px 30px rgba(255, 61, 154, 0.25);}
+.cobro span{display:block;font-size:15px;color:#d9d9e8; font-weight: 600;}
+.cobro b{display:block;font-size:46px;line-height:1.2;color:#b6ff3c; text-shadow: 0 0 15px rgba(182, 255, 60, 0.4);}
+.cobro p{margin:6px 0 0;font-size:14px;color:#ff8fc2; font-weight: 500;}
+
+.tile{padding:16px 20px;border-radius:18px;color:#14141c;margin-bottom:12px; box-shadow: 0 6px 15px rgba(0,0,0,0.15); transition: transform 0.2s;}
+.tile:hover { transform: translateY(-3px); }
+.tile span{display:block;font-size:13px;font-weight:700; text-transform: uppercase; opacity: 0.85;}
+.tile b{display:block;font:400 28px 'Bungee',sans-serif; margin-top: 4px;}
+
+.chip-cat{display:inline-block;border-radius:999px;padding:6px 18px;font-weight:700;color:#14141c; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
+
+[data-testid^="stBaseButton-primary"]{background:linear-gradient(135deg, #ff3d9a, #ff5aac);border:0;min-height:3.4rem; border-radius: 14px; box-shadow: 0 6px 20px rgba(255, 61, 154, 0.4); transition: all 0.3s;}
+[data-testid^="stBaseButton-primary"]:hover{background:linear-gradient(135deg, #ff5aac, #ff7bc2); box-shadow: 0 8px 25px rgba(255, 61, 154, 0.7); transform: translateY(-2px);}
+[data-testid^="stBaseButton-primary"] p{color:#14141c;font-weight:800; font-size: 16px; letter-spacing: 0.5px;}
+
+div
