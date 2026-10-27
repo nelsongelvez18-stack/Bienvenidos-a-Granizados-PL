@@ -1,7 +1,7 @@
 [theme]
 base = "light"
 primaryColor = "#ff3d9a"
-backgroundColor = "#f2f5fb"
+backgroundColor = "#eef2f6"         # gris moderno muy claro
 secondaryBackgroundColor = "#ffffff"
-textColor = "#14141c"
+textColor = "#1f2937"                # gris oscuro para texto
 font = "sans serif"
