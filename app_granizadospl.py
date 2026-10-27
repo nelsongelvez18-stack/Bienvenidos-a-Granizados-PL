@@ -18,6 +18,9 @@ TZ = timezone(timedelta(hours=-5))  # Colombia
 UMBRAL_BAJO = 5
 LOGO = Path("logo_pl.png")
 
+# CONTRASEÑA DIRECTA DEL SISTEMA
+CLAVE_ACCESO = "Granizadospl2026**"
+
 PRECIOS_VENTA = {"SIN ALCOHOL": 13000, "CON ALCOHOL": 15000, "CREMOSOS": 15000}
 COLORES = {"SIN ALCOHOL": "#10b981", "CON ALCOHOL": "#ec4899", "CREMOSOS": "#f59e0b"}
 METODOS_PAGO = ["Efectivo", "Transferencia Nequi / Billeteras virtuales"]
@@ -63,7 +66,7 @@ def init_supabase() -> Client:
 def asegurar_usuario_admin():
     try:
         supabase = init_supabase()
-        hashed_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        hashed_password = bcrypt.hashpw(CLAVE_ACCESO.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         res = supabase.table("usuarios").select("*").eq("username", "admin").execute()
         if not res.data:
             supabase.table("usuarios").insert({
@@ -178,11 +181,6 @@ def avisar(mensaje, icono=None):
 
 
 def verificar_acceso():
-    try:
-        clave = st.secrets.get("clave_app", "admin123")
-    except Exception:
-        clave = "admin123"
-
     if st.session_state.get("acceso_ok"):
         return
 
@@ -207,7 +205,7 @@ def verificar_acceso():
         st.caption("Acceso Seguro - Sistema POS Cloud")
         intento = st.text_input("Contraseña de acceso", type="password")
         if st.button("Iniciar Sesión", type="primary", use_container_width=True):
-            if hmac.compare_digest(str(intento), str(clave)):
+            if hmac.compare_digest(str(intento), str(CLAVE_ACCESO)):
                 st.session_state["acceso_ok"] = True
                 st.rerun()
             else:
