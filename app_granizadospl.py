@@ -26,7 +26,7 @@ SABORES = {
     "CON ALCOHOL": ["Agave Ice", "Andromeda Ice", "Bon Bon Bum Ice", "Candy Ice", "Cherryboom Ice", "Cosmico Ice", "Estelar Ice", "Fresa Salvaje Ice", "Fourloko Ice", "Interestelar Ice", "Luxury Ice", "Mango Explosivo Ice", "Miami Ice", "Monaco Ice", "Mora Azul Ice", "Nebula Ice", "Orion Ice", "Smirnoff Lulo Ice", "Smirnoff Limon Ice", "Tropical Caribeña Ice", "Velvet Ice"],
     "CREMOSOS": ["Bayleys", "Coco Loco", "Piña Colada"],
 }
-EXTRAS = ["Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", "Goma splash (porción)", "Lluvia de chocolate (porción)", "Barquillo (und)"]
+EXTRAS = ["Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", "Goma splash (porción)", "Barquillo (und)"]
 
 
 def clave_sabor(sabor):
@@ -39,7 +39,7 @@ for _sabores in SABORES.values():
     for _s in _sabores:
         INVENTARIO_BASE[clave_sabor(_s)] = 0
 
-PRODUCTOS_ELIMINADOS = {"Sachet 12 oz (und)", "Aguardiente (copa)", "Baileys (copa)", "Champaña (copa)", "Ron Blanco (copa)", "Tequila (copa)", "Vodka (copa)", "Whisky (copa)"}
+PRODUCTOS_ELIMINADOS = {"Sachet 12 oz (und)", "Aguardiente (copa)", "Baileys (copa)", "Champaña (copa)", "Ron Blanco (copa)", "Tequila (copa)", "Vodka (copa)", "Whisky (copa)", "Lluvia de chocolate (porción)"}
 CLAVES = ["inventario", "ventas", "movimientos", "gastos", "anulaciones", "cierres_caja", "compras"]
 
 
@@ -234,10 +234,18 @@ def anular_gasto(gasto_id):
     return True, "Gasto anulado."
 
 
-def consumos_venta(sabor, presentacion):
-    consumos = {clave_sabor(sabor): 1, "Pitillos (und)": 1, "Bolsa de papel (und)": 1}
+def consumos_venta(sabor, presentacion, incluir_bolsa):
+    consumos = {
+        clave_sabor(sabor): 1,
+        "Pitillos (und)": 1
+    }
+    if incluir_bolsa:
+        consumos["Bolsa de papel (und)"] = 1
     if presentacion == "Vaso 12 oz":
         consumos["Vaso 12 oz (und)"] = 1
+    # Descuento automático de una porción de cada topping/adición
+    for extra in EXTRAS:
+        consumos[extra] = 1
     return consumos
 
 
@@ -386,7 +394,9 @@ with tab_ventas:
                                      format_func=lambda m: "Efectivo" if m == "Efectivo" else "Nequi / Billeteras")
             with c3:
                 cantidad = st.number_input("Cantidad", min_value=1, max_value=50, value=1, step=1, key="cantidad_venta")
-            extras = st.multiselect("Adiciones / Toppings", EXTRAS, key="extras_venta")
+            
+            incluir_bolsa = st.checkbox("Incluir bolsa de papel", value=True, key="bolsa_venta")
+
             c4, c5 = st.columns(2)
             cliente = c4.text_input("Cliente (opcional)", key="cliente_venta")
             observacion = c5.text_input("Observación (opcional)", key="obs_venta")
@@ -409,24 +419,25 @@ with tab_ventas:
             unsafe_allow_html=True)
 
     if guardar_venta and sabor:
-        consumos = {p: q * int(cantidad) for p, q in consumos_venta(sabor, presentacion).items()}
+        consumos = {p: q * int(cantidad) for p, q in consumos_venta(sabor, presentacion, incluir_bolsa).items()}
+        # Solo bloquear si falta stock del Sabor principal
         faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumos.items()
-                     if int(st.session_state.inventario.get(p, 0)) < q]
+                     if p.startswith("Sabor ") and int(st.session_state.inventario.get(p, 0)) < q]
         if faltantes:
-            st.error("Inventario insuficiente: " + "; ".join(f"{p}: requiere {q}, disponible {d}" for p, q, d in faltantes))
+            st.error("Inventario insuficiente del sabor: " + "; ".join(f"{p}: requiere {q}, disponible {d}" for p, q, d in faltantes))
         else:
             venta_id = "V-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             for producto, unidades in consumos.items():
-                st.session_state.inventario[producto] -= unidades
+                st.session_state.inventario[producto] = int(st.session_state.inventario.get(producto, 0)) - unidades
                 registrar_movimiento(producto, "Salida por venta", unidades, f"Venta de {sabor}", venta_id)
             st.session_state.ventas.append({
                 "ID": venta_id, "Fecha": ahora(), "Cliente": cliente.strip() or "Cliente general",
                 "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion,
                 "Cantidad": int(cantidad), "Precio unitario": precio_unitario, "Total": total,
-                "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones": extras,
+                "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones automático": "Todos los toppings",
                 "Consumos": consumos, "Estado": "Vigente"})
             guardar_datos()
-            for k in ("cantidad_venta", "extras_venta", "cliente_venta", "obs_venta"):
+            for k in ("cantidad_venta", "cliente_venta", "obs_venta"):
                 st.session_state.pop(k, None)
             avisar(f"Venta registrada por {dinero(total)}", "✅")
 
@@ -580,7 +591,6 @@ with tab_caja:
                     avisar(f"Compra de {adicion_elegida} registrada ({porciones_adic} porciones sumadas).", "🎉")
                     
         else:
-            # Insumos y otros (Vasos, pitillos, bolsas)
             insumos_lista = ["Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"]
             ic1, ic2 = st.columns(2)
             with ic1:
