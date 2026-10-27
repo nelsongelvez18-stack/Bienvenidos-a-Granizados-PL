@@ -311,16 +311,25 @@ def consumos_venta(sabor, presentacion, incluir_bolsa):
     return consumos
 
 
-# --------------------------------------------------------------------- ESTILO LUMINOSO Y DINÁMICO (BANNER AMARILLO Y LOGO FLOTANTE)
+# --------------------------------------------------------------------- ESTILO CSS CON ANIMACIONES Y BANNER AMARILLO
 CSS_GENERAL = (
     "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');"
     "html, body, [class*='css'] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }"
     ".block-container { padding-top: 1.5rem; max-width: 1250px; }"
-    ".banner { background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); border: 1px solid #facc15; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #713f12; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(234, 179, 8, 0.2); position: relative; overflow: visible; }"
-    ".banner-logo-container { position: relative; display: inline-block; margin-top: -20px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.15)); transition: transform 0.3s ease; }"
-    ".banner-logo-container:hover { transform: translateY(-5px); }"
-    ".banner img { border-radius: 22px; width: 130px; height: 130px; object-fit: cover; border: 3px solid #ffffff; }"
-    ".granizado-avatar-vaso { width: 120px; height: 125px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; }"
+    ".banner { background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); border: 1px solid #facc15; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 24px; color: #713f12; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(234, 179, 8, 0.2); position: relative; overflow: visible; }"
+    
+    "@keyframes floatAnim { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-8px) rotate(1.5deg); } }"
+    "@keyframes blinkAnim { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }"
+    "@keyframes bubbleAnim { 0% { transform: translateY(0) scale(0.6); opacity: 0.8; } 100% { transform: translateY(-35px) scale(1.1); opacity: 0; } }"
+    
+    ".header-media-wrapper { display: flex; align-items: center; gap: 16px; margin-top: -15px; }"
+    ".banner-logo-container { animation: floatAnim 4s ease-in-out infinite; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.15)); }"
+    ".banner-logo-container img { border-radius: 22px; width: 110px; height: 110px; object-fit: cover; border: 3px solid #ffffff; }"
+    
+    ".avatar-container { position: relative; width: 105px; height: 115px; animation: floatAnim 3.5s ease-in-out infinite 0.5s; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.12)); }"
+    ".avatar-bubble { position: absolute; background: rgba(255, 255, 255, 0.7); border-radius: 50%; animation: bubbleAnim 2.5s infinite ease-in; }"
+    ".avatar-eye { animation: blinkAnim 4s infinite; transform-origin: center; }"
+    
     ".banner-texto { flex: 1; }"
     ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #713f12; letter-spacing: -0.5px; }"
     ".banner-sub { font-size: 16px; font-weight: 600; color: #854d0e; margin-top: 6px; }"
@@ -344,16 +353,61 @@ def tile(etiqueta, valor, color):
     return f'<div class="tile" style="background:{color}"><span>{etiqueta}</span><b>{valor}</b></div>'
 
 
-def logo_html():
+def avatar_svg_html():
+    return """
+    <div class="avatar-container">
+        <div class="avatar-bubble" style="width:10px; height:10px; left:20%; bottom:20%; animation-delay:0s;"></div>
+        <div class="avatar-bubble" style="width:8px; height:8px; left:75%; bottom:25%; animation-delay:0.8s;"></div>
+        <div class="avatar-bubble" style="width:12px; height:12px; left:45%; bottom:15%; animation-delay:1.5s;"></div>
+        
+        <svg viewBox="0 0 120 130" width="100%" height="100%">
+            <defs>
+                <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ec4899" />
+                    <stop offset="50%" stop-color="#f59e0b" />
+                    <stop offset="100%" stop-color="#10b981" />
+                </linearGradient>
+                <linearGradient id="strawGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#3b82f6" />
+                    <stop offset="100%" stop-color="#60a5fa" />
+                </linearGradient>
+            </defs>
+            <rect x="68" y="5" width="10" height="45" rx="5" fill="url(#strawGrad)" transform="rotate(15 68 5)"/>
+            <path d="M 25 35 Q 60 15 95 35 Z" fill="#ffffff" opacity="0.9"/>
+            <path d="M 22 38 L 32 110 Q 60 122 88 110 L 98 38 Z" fill="url(#cupGrad)" stroke="#ffffff" stroke-width="3"/>
+            <path d="M 28 42 L 36 104 Q 60 114 84 104 L 92 42 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+            
+            <g class="avatar-eye">
+                <circle cx="48" cy="65" r="5" fill="#1e293b"/>
+                <circle cx="50" cy="63" r="2" fill="#ffffff"/>
+            </g>
+            <g class="avatar-eye">
+                <circle cx="72" cy="65" r="5" fill="#1e293b"/>
+                <circle cx="74" cy="63" r="2" fill="#ffffff"/>
+            </g>
+            <path d="M 52 76 Q 60 84 68 76" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="40" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>
+            <circle cx="80" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>
+            <polygon points="45,48 50,42 55,48" fill="#ffffff" opacity="0.8"/>
+            <polygon points="65,52 70,45 75,52" fill="#ffffff" opacity="0.8"/>
+        </svg>
+    </div>
+    """
+
+
+def header_media_html():
     if LOGO.exists():
         b64 = base64.b64encode(LOGO.read_bytes()).decode()
-        inner = f'<img src="data:image/png;base64,{b64}" alt="Avatar Granizados PL">'
+        logo_img = f'<img src="data:image/png;base64,{b64}" alt="Logo Granizados PL">'
     else:
-        inner = '<div class="granizado-avatar-vaso"><span class="avatar-emoji">🍧</span></div>'
+        logo_img = '<div class="granizado-avatar-vaso"><span style="font-size:40px;">🍧</span></div>'
     
     return f"""
-    <div class="banner-logo-container">
-        {inner}
+    <div class="header-media-wrapper">
+        <div class="banner-logo-container">
+            {logo_img}
+        </div>
+        {avatar_svg_html()}
     </div>
     """
 
@@ -361,7 +415,7 @@ def logo_html():
 def encabezado():
     total_hoy = suma(ventas_vigentes(hoy(), hoy()))
     st.markdown(
-        f'<div class="banner">{logo_html()}<div class="banner-texto">'
+        f'<div class="banner">{header_media_html()}<div class="banner-texto">'
         '<div class="banner-titulo">Granizados PL</div>'
         '<div class="banner-sub">Sistema de Punto de Venta Inteligente Cloud · Túquerres, Nariño</div></div>'
         f'<div class="banner-ventas"><span>Ventas de hoy</span><b>{dinero_html(total_hoy)}</b></div></div>',
