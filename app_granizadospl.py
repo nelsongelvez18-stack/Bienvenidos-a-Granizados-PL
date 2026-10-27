@@ -241,7 +241,7 @@ def consumos_venta(sabor, presentacion):
     return consumos
 
 
-# --------------------------------------------------------------------- ESTILO (Con Animaciones y Avatar)
+# --------------------------------------------------------------------- ESTILO (Animaciones y Avatar)
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
@@ -432,15 +432,64 @@ with tab_ventas:
 
 # ------------------------------------------------------------------- INVENTARIO
 with tab_inventario:
-    st.header("Inventario General")
-    st.caption("Visualización del stock actual de sabores, insumos y adiciones/toppings.")
+    st.header("Gestión de Inventario")
+    st.caption("Consulta el stock categorizado y corrige existencias en caso de errores en compras.")
     
-    df_inv = pd.DataFrame([
-        {"Producto": p, "Existencias": int(q),
-         "Estado": "⚠️ Bajo" if p not in EXTRAS and int(q) <= UMBRAL_BAJO else "Disponible"}
-        for p, q in sorted(st.session_state.inventario.items())])
-    tabla(df_inv)
-    st.download_button("Descargar inventario CSV", df_inv.to_csv(index=False).encode("utf-8-sig"), "inventario_granizados_pl.csv", "text/csv")
+    sub_inv1, sub_inv2, sub_inv3, sub_inv4, sub_inv5, sub_inv_corr = st.tabs([
+        "🍧 Sin alcohol", "🍹 Con alcohol", "🍨 Cremosos", "🍬 Adicionales y toppings", "🥤 Insumos y otros", "✏️ Corrección de Stock"
+    ])
+    
+    keys_sin_alcohol = {clave_sabor(s) for s in SABORES["SIN ALCOHOL"]}
+    keys_con_alcohol = {clave_sabor(s) for s in SABORES["CON ALCOHOL"]}
+    keys_cremosos = {clave_sabor(s) for s in SABORES["CREMOSOS"]}
+    keys_extras = set(EXTRAS)
+    keys_insumos = {"Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"}
+
+    def render_sub_inventario(filtro_set, titulo_cat):
+        st.subheader(titulo_cat)
+        items = [(p, q) for p, q in st.session_state.inventario.items() if p in filtro_set]
+        df = pd.DataFrame([
+            {"Producto": p, "Existencias": int(q),
+             "Estado": "⚠️ Bajo" if int(q) <= UMBRAL_BAJO and p not in EXTRAS else ("Sin control" if p in EXTRAS else "Disponible")}
+            for p, q in sorted(items)
+        ])
+        tabla(df)
+        st.download_button(f"Descargar {titulo_cat.lower()} CSV", df.to_csv(index=False).encode("utf-8-sig"), f"inventario_{titulo_cat.lower().replace(' ', '_')}.csv", "text/csv")
+
+    with sub_inv1:
+        render_sub_inventario(keys_sin_alcohol, "Granizados Sin Alcohol")
+    with sub_inv2:
+        render_sub_inventario(keys_con_alcohol, "Granizados Con Alcohol")
+    with sub_inv3:
+        render_sub_inventario(keys_cremosos, "Granizados Cremosos")
+    with sub_inv4:
+        render_sub_inventario(keys_extras, "Adicionales y Toppings")
+    with sub_inv5:
+        render_sub_inventario(keys_insumos, "Insumos y Otros Artículos")
+        
+    with sub_inv_corr:
+        st.subheader("Corrección y Ajuste Directo de Inventario")
+        st.caption("Usa este formulario para corregir errores de ingresos en compras o restablecer productos a cero (0).")
+        with st.form("form_correccion_stock"):
+            prod_corr = st.selectbox("Selecciona el producto a corregir", sorted(st.session_state.inventario.keys()))
+            stock_actual = int(st.session_state.inventario.get(prod_corr, 0))
+            st.info(f"Existencias actuales de **{prod_corr}**: **{stock_actual} unidades**")
+            
+            nueva_cantidad = st.number_input("Nueva cantidad exacta", min_value=0, max_value=100000, value=stock_actual, step=1)
+            detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en compra anterior")
+            
+            btn_guardar_corr = st.form_submit_button("Actualizar y guardar cantidad", type="primary")
+            
+        if btn_guardar_corr:
+            if not detalle_corr.strip():
+                st.error("Debes escribir el motivo de la corrección para auditoría.")
+            else:
+                dif = nueva_cantidad - stock_actual
+                st.session_state.inventario[prod_corr] = nueva_cantidad
+                tipo_mov = "Corrección manual a 0" if nueva_cantidad == 0 else ("Ajuste manual (aumento)" if dif > 0 else "Ajuste manual (reducción)")
+                registrar_movimiento(prod_corr, tipo_mov, abs(dif), detalle_corr)
+                guardar_datos()
+                avisar(f"Inventario de {prod_corr} actualizado correctamente a {nueva_cantidad}.", "✏️")
 
 # -------------------------------------------------------------------- HISTORIAL
 with tab_historial:
@@ -506,7 +555,6 @@ with tab_caja:
                 guardar_datos()
                 avisar(f"Compra registrada por {dinero(total_c)} y sumada al inventario.", "🛒")
         else:
-            # Compra de Toppings / Adiciones
             tc1, tc2 = st.columns(2)
             with tc1:
                 adicion_elegida = st.selectbox("Selecciona la Adición / Topping", EXTRAS, key="adic_compra_sel")
