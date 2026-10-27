@@ -595,7 +595,7 @@ with tab_cierre:
     col_c5.metric("Caja en efectivo esperada", dinero(r_cierre["caja_efectivo"]), border=True)
     col_c6.metric("Unidades vendidas", r_cierre["unidades"], border=True)
     
-  efectivo_contado = col_c7.number_input("Efectivo contado en caja ($)", min_value=0, value=max(0, int(r_cierre["caja_efectivo"])), step=500, key="efectivo_contado_cierre")
+    efectivo_contado = col_c7.number_input("Efectivo contado en caja ($)", min_value=0, value=max(0, int(r_cierre["caja_efectivo"])), step=500, key="efectivo_contado_cierre")
     
     diferencia = efectivo_contado - r_cierre["caja_efectivo"]
     if diferencia != 0:
