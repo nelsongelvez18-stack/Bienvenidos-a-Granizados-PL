@@ -359,7 +359,6 @@ def avatar_svg_html():
         <div class="avatar-bubble" style="width:10px; height:10px; left:20%; bottom:20%; animation-delay:0s;"></div>
         <div class="avatar-bubble" style="width:8px; height:8px; left:75%; bottom:25%; animation-delay:0.8s;"></div>
         <div class="avatar-bubble" style="width:12px; height:12px; left:45%; bottom:15%; animation-delay:1.5s;"></div>
-        
         <svg viewBox="0 0 120 130" width="100%" height="100%">
             <defs>
                 <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -376,7 +375,6 @@ def avatar_svg_html():
             <path d="M 25 35 Q 60 15 95 35 Z" fill="#ffffff" opacity="0.9"/>
             <path d="M 22 38 L 32 110 Q 60 122 88 110 L 98 38 Z" fill="url(#cupGrad)" stroke="#ffffff" stroke-width="3"/>
             <path d="M 28 42 L 36 104 Q 60 114 84 104 L 92 42 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-            
             <g class="avatar-eye">
                 <circle cx="48" cy="65" r="5" fill="#1e293b"/>
                 <circle cx="50" cy="63" r="2" fill="#ffffff"/>
