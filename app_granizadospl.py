@@ -303,3 +303,65 @@ def anular_venta(venta_id):
 def consumos_venta(sabor, presentacion, incluir_bolsa):
     consumos = {
         clave_sabor(sabor): 1,
+        "Pitillos (und)": 1
+    }
+    if incluir_bolsa:
+        consumos["Bolsa de papel (und)"] = 1
+    if presentacion == "Vaso 12 oz":
+        consumos["Vaso 12 oz (und)"] = 1
+    for extra in EXTRAS:
+        consumos[extra] = 1
+    return consumos
+
+
+# --------------------------------------------------------------------- ESTILO LUMINOSO Y DINÁMICO
+CSS_GENERAL = (
+    "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');"
+    "html, body, [class*='css'] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }"
+    ".block-container { padding-top: 1.5rem; max-width: 1250px; }"
+    ".banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }"
+    ".banner-logo-container { position: relative; display: inline-block; }"
+    ".banner img { box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }"
+    ".granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); }"
+    ".banner-texto { flex: 1; }"
+    ".banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }"
+    ".banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }"
+    ".banner-ventas { background: #ffffff; border: 2px solid #6366f1; color: #0f172a; border-radius: 20px; padding: 18px 28px; min-width: 240px; text-align: right; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1); }"
+    ".banner-ventas span { display: block; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }"
+    ".banner-ventas b { display: block; font: 800 32px 'Outfit', sans-serif; color: #6366f1; margin-top: 4px; }"
+    ".cobro { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #6366f1; border-radius: 24px; padding: 24px 28px; color: #1e293b; margin-bottom: 14px; box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.12); }"
+    ".cobro span { display: block; font-size: 15px; color: #64748b; font-weight: 600; }"
+    ".cobro b { display: block; font: 800 48px 'Outfit', sans-serif; line-height: 1.1; color: #0f172a; }"
+    ".cobro p { margin: 8px 0 0; font-size: 14px; color: #6366f1; font-weight: 600; }"
+    ".tile { padding: 18px 22px; border-radius: 20px; color: #ffffff; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }"
+    ".tile span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; }"
+    ".tile b { display: block; font: 700 28px 'Outfit', sans-serif; margin-top: 4px; }"
+    ".chip-cat { display: inline-block; border-radius: 999px; padding: 6px 18px; font-weight: 700; color: #ffffff; font-size: 14px; }"
+    "div[data-testid='stMetric'] { background: #ffffff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }"
+)
+st.markdown("<style>" + CSS_GENERAL + "</style>", unsafe_allow_html=True)
+
+
+def tile(etiqueta, valor, color):
+    return f'<div class="tile" style="background:{color}"><span>{etiqueta}</span><b>{valor}</b></div>'
+
+
+def logo_html():
+    if LOGO.exists():
+        b64 = base64.b64encode(LOGO.read_bytes()).decode()
+        inner = f'<img src="data:image/png;base64,{b64}" alt="Avatar Granizados PL">'
+    else:
+        inner = '<div class="granizado-avatar-vaso"><span class="avatar-emoji">🍧</span></div>'
+    
+    return f"""
+    <div class="banner-logo-container">
+        {inner}
+    </div>
+    """
+
+
+def encabezado():
+    total_hoy = suma(ventas_vigentes(hoy(), hoy()))
+    st.markdown(
+        f'<div class="banner">{logo_html()}<div class="banner-texto">'
+        '<div class="banner-titulo">Granizados PL
