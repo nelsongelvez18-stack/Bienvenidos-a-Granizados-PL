@@ -311,7 +311,7 @@ def consumos_venta(sabor, presentacion, incluir_bolsa):
     return consumos
 
 
-# --------------------------------------------------------------------- ESTILO CSS CON ANIMACIONES Y BANNER AMARILLO
+# --------------------------------------------------------------------- ESTILO CSS
 CSS_GENERAL = (
     "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');"
     "html, body, [class*='css'] { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }"
@@ -354,43 +354,43 @@ def tile(etiqueta, valor, color):
 
 
 def avatar_svg_html():
-    return """
-    <div class="avatar-container">
-        <div class="avatar-bubble" style="width:10px; height:10px; left:20%; bottom:20%; animation-delay:0s;"></div>
-        <div class="avatar-bubble" style="width:8px; height:8px; left:75%; bottom:25%; animation-delay:0.8s;"></div>
-        <div class="avatar-bubble" style="width:12px; height:12px; left:45%; bottom:15%; animation-delay:1.5s;"></div>
-        <svg viewBox="0 0 120 130" width="100%" height="100%">
-            <defs>
-                <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#ec4899" />
-                    <stop offset="50%" stop-color="#f59e0b" />
-                    <stop offset="100%" stop-color="#10b981" />
-                </linearGradient>
-                <linearGradient id="strawGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#3b82f6" />
-                    <stop offset="100%" stop-color="#60a5fa" />
-                </linearGradient>
-            </defs>
-            <rect x="68" y="5" width="10" height="45" rx="5" fill="url(#strawGrad)" transform="rotate(15 68 5)"/>
-            <path d="M 25 35 Q 60 15 95 35 Z" fill="#ffffff" opacity="0.9"/>
-            <path d="M 22 38 L 32 110 Q 60 122 88 110 L 98 38 Z" fill="url(#cupGrad)" stroke="#ffffff" stroke-width="3"/>
-            <path d="M 28 42 L 36 104 Q 60 114 84 104 L 92 42 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-            <g class="avatar-eye">
-                <circle cx="48" cy="65" r="5" fill="#1e293b"/>
-                <circle cx="50" cy="63" r="2" fill="#ffffff"/>
-            </g>
-            <g class="avatar-eye">
-                <circle cx="72" cy="65" r="5" fill="#1e293b"/>
-                <circle cx="74" cy="63" r="2" fill="#ffffff"/>
-            </g>
-            <path d="M 52 76 Q 60 84 68 76" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="40" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>
-            <circle cx="80" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>
-            <polygon points="45,48 50,42 55,48" fill="#ffffff" opacity="0.8"/>
-            <polygon points="65,52 70,45 75,52" fill="#ffffff" opacity="0.8"/>
-        </svg>
-    </div>
-    """
+    return (
+        '<div class="avatar-container">'
+        '<div class="avatar-bubble" style="width:10px; height:10px; left:20%; bottom:20%; animation-delay:0s;"></div>'
+        '<div class="avatar-bubble" style="width:8px; height:8px; left:75%; bottom:25%; animation-delay:0.8s;"></div>'
+        '<div class="avatar-bubble" style="width:12px; height:12px; left:45%; bottom:15%; animation-delay:1.5s;"></div>'
+        '<svg viewBox="0 0 120 130" width="100%" height="100%">'
+        '<defs>'
+        '<linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">'
+        '<stop offset="0%" stop-color="#ec4899" />'
+        '<stop offset="50%" stop-color="#f59e0b" />'
+        '<stop offset="100%" stop-color="#10b981" />'
+        '</linearGradient>'
+        '<linearGradient id="strawGrad" x1="0%" y1="0%" x2="100%" y2="0%">'
+        '<stop offset="0%" stop-color="#3b82f6" />'
+        '<stop offset="100%" stop-color="#60a5fa" />'
+        '</linearGradient>'
+        '</defs>'
+        '<rect x="68" y="5" width="10" height="45" rx="5" fill="url(#strawGrad)" transform="rotate(15 68 5)"/>'
+        '<path d="M 25 35 Q 60 15 95 35 Z" fill="#ffffff" opacity="0.9"/>'
+        '<path d="M 22 38 L 32 110 Q 60 122 88 110 L 98 38 Z" fill="url(#cupGrad)" stroke="#ffffff" stroke-width="3"/>'
+        '<path d="M 28 42 L 36 104 Q 60 114 84 104 L 92 42 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>'
+        '<g class="avatar-eye">'
+        '<circle cx="48" cy="65" r="5" fill="#1e293b"/>'
+        '<circle cx="50" cy="63" r="2" fill="#ffffff"/>'
+        '</g>'
+        '<g class="avatar-eye">'
+        '<circle cx="72" cy="65" r="5" fill="#1e293b"/>'
+        '<circle cx="74" cy="63" r="2" fill="#ffffff"/>'
+        '</g>'
+        '<path d="M 52 76 Q 60 84 68 76" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>'
+        '<circle cx="40" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>'
+        '<circle cx="80" cy="73" r="4" fill="#f43f5e" opacity="0.5"/>'
+        '<polygon points="45,48 50,42 55,48" fill="#ffffff" opacity="0.8"/>'
+        '<polygon points="65,52 70,45 75,52" fill="#ffffff" opacity="0.8"/>'
+        '</svg>'
+        '</div>'
+    )
 
 
 def header_media_html():
@@ -400,14 +400,7 @@ def header_media_html():
     else:
         logo_img = '<div class="granizado-avatar-vaso"><span style="font-size:40px;">🍧</span></div>'
     
-    return f"""
-    <div class="header-media-wrapper">
-        <div class="banner-logo-container">
-            {logo_img}
-        </div>
-        {avatar_svg_html()}
-    </div>
-    """
+    return f'<div class="header-media-wrapper"><div class="banner-logo-container">{logo_img}</div>{avatar_svg_html()}</div>'
 
 
 def encabezado():
