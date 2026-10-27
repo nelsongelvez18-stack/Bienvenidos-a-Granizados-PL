@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Granizados PL - Punto de Venta PRO", page_icon="🍧", layout="wide")
+st.set_page_config(page_title="Granizados PL - Punto de Venta", page_icon="🍧", layout="wide")
 
 # ---------------------------------------------------------------- CONFIGURACIÓN
 TZ = timezone(timedelta(hours=-5))  # Colombia (sin horario de verano)
@@ -271,11 +271,14 @@ CSS_GENERAL = (
     "@keyframes pulseGlow { 0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } 50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.4); } 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); } }\n"
     "@keyframes floatBadge1 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-8px, -12px) rotate(5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
     "@keyframes floatBadge2 { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(10px, 8px) rotate(-5deg); } 100% { transform: translate(0, 0) rotate(0deg); } }\n"
+    "@keyframes cupBounce { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(3deg); } }\n"
     ".banner { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 28px; padding: 24px 36px; display: flex; align-items: center; gap: 28px; color: #1e293b; margin-bottom: 24px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); position: relative; overflow: visible; }\n"
     ".banner-logo-container { position: relative; display: inline-block; }\n"
-    ".banner img, .banner-logo { animation: floatDynamic 5s ease-in-out infinite; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; }\n"
-    ".banner img { width: 120px; height: 120px; object-fit: cover; }\n"
-    ".banner-logo { width: 120px; height: 120px; background: linear-gradient(135deg, #6366f1, #ec4899); color: #ffffff; display: flex; align-items: center; justify-content: center; font: 700 48px 'Outfit', sans-serif; }\n"
+    ".banner img { animation: floatDynamic 5s ease-in-out infinite; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25); border-radius: 22px; width: 120px; height: 120px; object-fit: cover; }\n"
+    ".granizado-avatar-vaso { width: 110px; height: 115px; background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%); border-radius: 12px 12px 28px 28px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 25px rgba(99, 102, 241, 0.3); animation: cupBounce 3.5s ease-in-out infinite; }\n"
+    ".granizado-avatar-vaso::before { content: ''; position: absolute; top: -14px; left: -6px; right: -6px; height: 22px; background: #ffffff; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }\n"
+    ".granizado-avatar-vaso::after { content: ''; position: absolute; top: -32px; right: 22px; width: 8px; height: 45px; background: #10b981; transform: rotate(25deg); border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }\n"
+    ".avatar-emoji { font-size: 38px; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }\n"
     ".floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }\n"
     ".floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }\n"
     ".banner-texto { flex: 1; }\n"
@@ -293,9 +296,9 @@ CSS_GENERAL = (
     ".tile span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.5px; }\n"
     ".tile b { display: block; font: 700 28px 'Outfit', sans-serif; margin-top: 4px; }\n"
     ".chip-cat { display: inline-block; border-radius: 999px; padding: 6px 18px; font-weight: 700; color: #ffffff; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }\n"
-    "[data-testid^=\"stBaseButton-primary\"] { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 0; min-height: 3.5rem; border-radius: 16px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35); transition: all 0.3s; }\n"
-    "[data-testid^=\"stBaseButton-primary\"]:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); box-shadow: 0 12px 25px rgba(99, 102, 241, 0.5); transform: translateY(-2px); }\n"
-    "[data-testid^=\"stBaseButton-primary\"] p { color: #ffffff; font-weight: 700; font-size: 16px; letter-spacing: 0.3px; }\n"
+    "[data-testid=\"stBaseButton-primary\"] { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 0; min-height: 3.5rem; border-radius: 16px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35); transition: all 0.3s; }\n"
+    "[data-testid=\"stBaseButton-primary\"]:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); box-shadow: 0 12px 25px rgba(99, 102, 241, 0.5); transform: translateY(-2px); }\n"
+    "[data-testid=\"stBaseButton-primary\"] p { color: #ffffff; font-weight: 700; font-size: 16px; letter-spacing: 0.3px; }\n"
     "div[data-testid=\"stMetric\"] { background: #ffffff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }\n"
 )
 st.markdown(f"<style>{CSS_GENERAL}</style>", unsafe_allow_html=True)
@@ -310,12 +313,12 @@ def logo_html():
         b64 = base64.b64encode(LOGO.read_bytes()).decode()
         inner = f'<img src="data:image/png;base64,{b64}" alt="Avatar Granizados PL">'
     else:
-        inner = '<div class="banner-logo">🍧</div>'
+        inner = '<div class="granizado-avatar-vaso"><span class="avatar-emoji">🍧</span></div>'
     
     return f"""
     <div class="banner-logo-container">
         {inner}
-        <div class="floating-badge-1">⭐ PRO</div>
+        <div class="floating-badge-1">⭐ 100%</div>
         <div class="floating-badge-2">⚡ Rápido</div>
     </div>
     """
@@ -325,7 +328,7 @@ def encabezado():
     total_hoy = suma(ventas_vigentes(hoy(), hoy()))
     st.markdown(
         f'<div class="banner">{logo_html()}<div class="banner-texto">'
-        '<div class="banner-titulo">Granizados PL <span style="color:#6366f1">PRO</span></div>'
+        '<div class="banner-titulo">Granizados PL</div>'
         '<div class="banner-sub">Sistema de Punto de Venta Inteligente · Túquerres, Nariño</div></div>'
         f'<div class="banner-ventas"><span>Ventas de hoy</span><b>{dinero_html(total_hoy)}</b></div></div>',
         unsafe_allow_html=True)
@@ -379,336 +382,4 @@ tab_ventas, tab_inventario, tab_historial, tab_caja, tab_reportes, tab_cierre = 
 
 # ---------------------------------------------------------------------- VENTAS
 with tab_ventas:
-    col_form, col_cobro = st.columns([2, 1], gap="large")
-    with col_form:
-        with st.container(border=True):
-            st.subheader("Nueva venta rápida")
-            categoria = elegir("1. Elige la categoría", list(SABORES), "SIN ALCOHOL", "categoria_venta",
-                               format_func=lambda c: f"{c.title()} · {dinero(PRECIOS_VENTA[c])}")
-            st.markdown(f'<span class="chip-cat" style="background:{COLORES[categoria]}">{categoria.title()}</span>', unsafe_allow_html=True)
-            sabores = list(dict.fromkeys(SABORES[categoria]))
-            sabor = st.pills("2. Toca un sabor", sabores, default=sabores[0], key=f"sabor_venta_{categoria}")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                presentacion = elegir("Presentación", ["Vaso 12 oz", "Sachet 12 oz"], "Vaso 12 oz", "presentacion_venta")
-            with c2:
-                metodo_pago = elegir("Medio de pago", METODOS_PAGO, METODOS_PAGO[0], "pago_venta",
-                                     format_func=lambda m: "Efectivo" if m == "Efectivo" else "Nequi / Billeteras")
-            with c3:
-                cantidad = st.number_input("Cantidad", min_value=1, max_value=50, value=1, step=1, key="cantidad_venta")
-            
-            incluir_bolsa = st.checkbox("Incluir bolsa de papel", value=True, key="bolsa_venta")
-
-            c4, c5 = st.columns(2)
-            cliente = c4.text_input("Cliente (opcional)", key="cliente_venta")
-            observacion = c5.text_input("Observación (opcional)", key="obs_venta")
-
-    precio_unitario = PRECIOS_VENTA[categoria]
-    total = precio_unitario * int(cantidad)
-    with col_cobro:
-        pago_corto = "Efectivo" if metodo_pago == "Efectivo" else "Nequi"
-        st.markdown(
-            f'<div class="cobro"><span>Total a cobrar</span><b>{dinero_html(total)}</b>'
-            f'<p>{int(cantidad)} × {sabor or "—"} · {presentacion} · {pago_corto}</p></div>',
-            unsafe_allow_html=True)
-        guardar_venta = st.button("Registrar Venta", type="primary", use_container_width=True, disabled=sabor is None)
-        r_hoy = resumen_dia(hoy())
-        st.markdown("**Resumen de hoy**")
-        st.markdown(
-            tile("Ventas", len(r_hoy["ventas"]), "#10b981")
-            + tile("Efectivo", dinero_html(r_hoy["efectivo"]), "#f59e0b")
-            + tile("Transferencias", dinero_html(r_hoy["transferencias"]), "#ec4899"),
-            unsafe_allow_html=True)
-
-    if guardar_venta and sabor:
-        consumos = {p: q * int(cantidad) for p, q in consumos_venta(sabor, presentacion, incluir_bolsa).items()}
-        faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumos.items()
-                     if p.startswith("Sabor ") and int(st.session_state.inventario.get(p, 0)) < q]
-        if faltantes:
-            st.error("Inventario insuficiente del sabor: " + "; ".join(f"{p}: requiere {q}, disponible {d}" for p, q, d in faltantes))
-        else:
-            venta_id = "V-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-            for producto, unidades in consumos.items():
-                st.session_state.inventario[producto] = int(st.session_state.inventario.get(producto, 0)) - unidades
-                registrar_movimiento(producto, "Salida por venta", unidades, f"Venta de {sabor}", venta_id)
-            st.session_state.ventas.append({
-                "ID": venta_id, "Fecha": ahora(), "Cliente": cliente.strip() or "Cliente general",
-                "Categoría": categoria, "Sabor": sabor, "Presentación": presentacion,
-                "Cantidad": int(cantidad), "Precio unitario": precio_unitario, "Total": total,
-                "Medio de pago": metodo_pago, "Observación": observacion, "Adiciones automático": "Todos los toppings",
-                "Consumos": consumos, "Estado": "Vigente"})
-            guardar_datos()
-            for k in ("cantidad_venta", "cliente_venta", "obs_venta"):
-                st.session_state.pop(k, None)
-            st.balloons()
-            avisar(f"¡Venta registrada con éxito por {dinero(total)}!", "🎉")
-
-# ------------------------------------------------------------------- INVENTARIO
-with tab_inventario:
-    st.header("Gestión de Inventario")
-    st.caption("Consulta el stock categorizado y corrige existencias en caso de errores en compras.")
-    
-    sub_inv1, sub_inv2, sub_inv3, sub_inv4, sub_inv5, sub_inv_corr = st.tabs([
-        "🍧 Sin alcohol", "🍹 Con alcohol", "🍨 Cremosos", "🍬 Adicionales y toppings", "🥤 Insumos y otros", "✏️ Corrección de Stock"
-    ])
-    
-    keys_sin_alcohol = {clave_sabor(s) for s in SABORES["SIN ALCOHOL"]}
-    keys_con_alcohol = {clave_sabor(s) for s in SABORES["CON ALCOHOL"]}
-    keys_cremosos = {clave_sabor(s) for s in SABORES["CREMOSOS"]}
-    keys_extras = set(EXTRAS)
-    keys_insumos = {"Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"}
-
-    def render_sub_inventario(filtro_set, titulo_cat):
-        st.subheader(titulo_cat)
-        items = [(p, q) for p, q in st.session_state.inventario.items() if p in filtro_set]
-        df = pd.DataFrame([
-            {"Producto": p, "Existencias": int(q),
-             "Estado": "⚠️ Bajo" if int(q) <= UMBRAL_BAJO and p not in EXTRAS else ("Sin control" if p in EXTRAS else "Disponible")}
-            for p, q in sorted(items)
-        ])
-        tabla(df)
-        st.download_button(f"Descargar {titulo_cat.lower()} CSV", df.to_csv(index=False).encode("utf-8-sig"), f"inventario_{titulo_cat.lower().replace(' ', '_')}.csv", "text/csv")
-
-    with sub_inv1:
-        render_sub_inventario(keys_sin_alcohol, "Granizados Sin Alcohol")
-    with sub_inv2:
-        render_sub_inventario(keys_con_alcohol, "Granizados Con Alcohol")
-    with sub_inv3:
-        render_sub_inventario(keys_cremosos, "Granizados Cremosos")
-    with sub_inv4:
-        render_sub_inventario(keys_extras, "Adicionales y Toppings")
-    with sub_inv5:
-        render_sub_inventario(keys_insumos, "Insumos y Otros Artículos")
-        
-    with sub_inv_corr:
-        st.subheader("Corrección y Ajuste Directo de Inventario")
-        st.caption("Usa este formulario para corregir errores de ingresos en compras o restablecer productos a cero (0).")
-        with st.form("form_correccion_stock"):
-            prod_corr = st.selectbox("Selecciona el producto a corregir", sorted(st.session_state.inventario.keys()))
-            stock_actual = int(st.session_state.inventario.get(prod_corr, 0))
-            st.info(f"Existencias actuales de **{prod_corr}**: **{stock_actual} unidades**")
-            
-            nueva_cantidad = st.number_input("Nueva cantidad exacta", min_value=0, max_value=100000, value=stock_actual, step=1)
-            detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en compra anterior")
-            
-            btn_guardar_corr = st.form_submit_button("Actualizar y guardar cantidad", type="primary")
-            
-        if btn_guardar_corr:
-            if not detalle_corr.strip():
-                st.error("Debes escribir el motivo de la corrección para auditoría.")
-            else:
-                dif = nueva_cantidad - stock_actual
-                st.session_state.inventario[prod_corr] = nueva_cantidad
-                tipo_mov = "Corrección manual a 0" if nueva_cantidad == 0 else ("Ajuste manual (aumento)" if dif > 0 else "Ajuste manual (reducción)")
-                registrar_movimiento(prod_corr, tipo_mov, abs(dif), detalle_corr)
-                guardar_datos()
-                avisar(f"Inventario de {prod_corr} actualizado correctamente a {nueva_cantidad}.", "✏️")
-
-# -------------------------------------------------------------------- HISTORIAL
-with tab_historial:
-    st.header("Historial de ventas")
-    efectivas = ventas_vigentes()
-    if efectivas:
-        tabla(sin_consumos(efectivas[::-1]).drop(columns=["ID"], errors="ignore"))
-        etiquetas = {v["ID"]: f"{v['Fecha'][5:16]} · {v['Sabor']} ×{v['Cantidad']} · {dinero(v['Total'])}" for v in efectivas[::-1]}
-        with st.form("form_anular_venta"):
-            id_venta = st.selectbox("Venta vigente para anular", list(etiquetas), format_func=etiquetas.get)
-            confirmar = st.checkbox("Confirmo que deseo anular esta venta")
-            enviar = st.form_submit_button("Anular venta")
-        if enviar:
-            if not confirmar:
-                st.error("Debes confirmar la anulación.")
-            else:
-                ok, mensaje = anular_venta(id_venta)
-                if ok:
-                    avisar(mensaje, "↩️")
-                else:
-                    st.error(mensaje)
-    else:
-        st.info("No hay ventas efectivas registradas.")
-    if st.session_state.anulaciones:
-        with st.expander("Registro de anulaciones (auditoría)"):
-            tabla(pd.DataFrame(st.session_state.anulaciones[::-1]))
-
-# ------------------------------------------------------------------------- CAJA Y COMPRAS
-with tab_caja:
-    st.header("Caja, Gastos y Compras")
-    r = resumen_dia(hoy())
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ventas en efectivo", dinero(r["efectivo"]), border=True)
-    m2.metric("Transferencias", dinero(r["transferencias"]), border=True)
-    m3.metric("Gastos de hoy", dinero(r["gastos_total"]), border=True)
-    m4.metric("Efectivo en caja", dinero(r["caja_efectivo"]), border=True)
-
-    with st.container(border=True):
-        st.subheader("Registrar compra (Granizados, Toppings o Insumos)")
-        tipo_compra = st.radio("¿Qué tipo de producto vas a comprar?", ["Granizados (Sabores)", "Adiciones / Toppings", "Insumos y otros (Vasos, pitillos, bolsas)"], horizontal=True)
-        
-        if tipo_compra == "Granizados (Sabores)":
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                cat_c = elegir("Categoría", list(SABORES), "SIN ALCOHOL", "cat_compra_granizado", format_func=str.title)
-                sabor_c = st.selectbox("Sabor", SABORES[cat_c], key=f"sabor_c_{cat_c}")
-                cant_c = st.number_input("Cantidad comprada", min_value=1, value=1, step=1, key="cant_c_granizado")
-            costo_u = PRECIOS_COMPRA[cat_c]
-            total_c = costo_u * int(cant_c)
-            with cc2:
-                st.metric("Costo por unidad", dinero(costo_u))
-                st.metric("Total compra", dinero(total_c))
-                medio_c = st.selectbox("Medio de pago", METODOS_PAGO, key="medio_c_granizado")
-                det_c = st.text_input("Proveedor / Detalle", key="det_c_granizado")
-            
-            if st.button("Registrar compra de granizados", type="primary"):
-                prod = clave_sabor(sabor_c)
-                cid = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-                st.session_state.compras.append({"ID": cid, "Fecha": ahora(), "Categoría": cat_c, "Sabor": sabor_c, "Producto": prod, "Cantidad": int(cant_c), "Costo unitario": costo_u, "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Estado": "Vigente"})
-                st.session_state.inventario[prod] = int(st.session_state.inventario.get(prod, 0)) + int(cant_c)
-                registrar_movimiento(prod, "Entrada por compra", cant_c, det_c, cid)
-                st.session_state.gastos.append({"ID": "G-" + cid, "Fecha": ahora(), "Concepto": f"Compra granizado: {sabor_c}", "Valor": total_c, "Medio de pago": medio_c, "Detalle": det_c, "Compra ID": cid, "Anulado": False})
-                guardar_datos()
-                avisar(f"Compra registrada por {dinero(total_c)} y sumada al inventario.", "🛒")
-                
-        elif tipo_compra == "Adiciones / Toppings":
-            tc1, tc2 = st.columns(2)
-            with tc1:
-                adicion_elegida = st.selectbox("Selecciona la Adición / Topping", EXTRAS, key="adic_compra_sel")
-                valor_adic = st.number_input("Valor total pagado ($)", min_value=0, value=0, step=500, key="val_adic_compra")
-                porciones_adic = st.number_input("Porciones o unidades que rinde el paquete", min_value=1, value=1, step=1, key="porc_adic_compra")
-            with tc2:
-                medio_adic = st.selectbox("Medio de pago", METODOS_PAGO, key="medio_adic_pago")
-                det_adic = st.text_input("Proveedor / Observación", key="det_adic_compra")
-            
-            if st.button("Registrar compra de Topping", type="primary"):
-                if valor_adic <= 0:
-                    st.error("El valor debe ser mayor a cero.")
-                else:
-                    gid = "G-TOP-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-                    st.session_state.inventario[adicion_elegida] = int(st.session_state.inventario.get(adicion_elegida, 0)) + int(porciones_adic)
-                    registrar_movimiento(adicion_elegida, "Entrada por compra de adición", porciones_adic, det_adic, gid)
-                    st.session_state.gastos.append({
-                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra topping: {adicion_elegida}", "Valor": int(valor_adic),
-                        "Medio de pago": medio_adic, "Detalle": det_adic, "Producto": adicion_elegida, "Unidades": int(porciones_adic), "Anulado": False
-                    })
-                    guardar_datos()
-                    avisar(f"Compra de {adicion_elegida} registrada ({porciones_adic} porciones sumadas).", "🎉")
-                    
-        else:
-            insumos_lista = ["Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"]
-            ic1, ic2 = st.columns(2)
-            with ic1:
-                insumo_elegido = st.selectbox("Selecciona el insumo", insumos_lista, key="insumo_compra_sel")
-                valor_insumo = st.number_input("Valor total pagado ($)", min_value=0, value=0, step=500, key="val_insumo_compra")
-                cantidad_insumo = st.number_input("Cantidad comprada (unidades)", min_value=1, value=1, step=1, key="cant_insumo_compra")
-            with ic2:
-                medio_insumo = st.selectbox("Medio de pago", METODOS_PAGO, key="medio_insumo_pago")
-                det_insumo = st.text_input("Proveedor / Observación", key="det_insumo_compra")
-            
-            if st.button("Registrar compra de insumo", type="primary"):
-                if valor_insumo <= 0:
-                    st.error("El valor debe ser mayor a cero.")
-                else:
-                    gid = "G-INS-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-                    st.session_state.inventario[insumo_elegido] = int(st.session_state.inventario.get(insumo_elegido, 0)) + int(cantidad_insumo)
-                    registrar_movimiento(insumo_elegido, "Entrada por compra de insumo", cantidad_insumo, det_insumo, gid)
-                    st.session_state.gastos.append({
-                        "ID": gid, "Fecha": ahora(), "Concepto": f"Compra insumo: {insumo_elegido}", "Valor": int(valor_insumo),
-                        "Medio de pago": medio_insumo, "Detalle": det_insumo, "Producto": insumo_elegido, "Unidades": int(cantidad_insumo), "Anulado": False
-                    })
-                    guardar_datos()
-                    avisar(f"Compra de {insumo_elegido} registrada ({cantidad_insumo} unidades sumadas).", "🥤")
-
-    with st.expander("Registrar otro gasto general (servicios, transporte, etc.)"):
-        with st.form("form_gasto_general", clear_on_submit=True):
-            concepto_g = st.text_input("Concepto del gasto")
-            valor_g = st.number_input("Valor ($)", min_value=0, value=0, step=500)
-            metodo_g = st.selectbox("Medio de pago", METODOS_PAGO)
-            det_g = st.text_input("Detalle")
-            enviar_g = st.form_submit_button("Guardar gasto")
-        if enviar_g:
-            if not concepto_g.strip() or valor_g <= 0:
-                st.error("Indica concepto y valor.")
-            else:
-                gid = "G-GEN-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
-                st.session_state.gastos.append({"ID": gid, "Fecha": ahora(), "Concepto": concepto_g.strip(), "Valor": int(valor_g), "Medio de pago": metodo_g, "Detalle": det_g, "Anulado": False})
-                guardar_datos()
-                avisar("Gasto general registrado.", "💸")
-
-    st.subheader("Gastos y Compras de hoy")
-    gastos_hoy = r["gastos"]
-    if gastos_hoy:
-        tabla(pd.DataFrame(gastos_hoy[::-1]).drop(columns=["ID", "Anulado"], errors="ignore"))
-        st.download_button("Descargar gastos CSV", pd.DataFrame(gastos_hoy).to_csv(index=False).encode("utf-8-sig"), "gastos_granizados_pl.csv", "text/csv")
-    else:
-        st.info("No hay gastos registrados hoy.")
-
-# --------------------------------------------------------------------- REPORTES
-with tab_reportes:
-    st.header("Reportes")
-    col1, col2 = st.columns(2)
-    desde = col1.date_input("Desde", value=hoy(), key="reporte_desde")
-    hasta = col2.date_input("Hasta", value=hoy(), key="reporte_hasta")
-    if desde > hasta:
-        st.error("La fecha inicial no puede ser posterior a la fecha final.")
-    else:
-        periodo = ventas_vigentes(desde, hasta)
-        a, b, c = st.columns(3)
-        a.metric("Ventas vigentes", len(periodo), border=True)
-        b.metric("Unidades vendidas", suma(periodo, "Cantidad"), border=True)
-        c.metric("Ingresos", dinero(suma(periodo)), border=True)
-        if periodo:
-            dfp = sin_consumos(periodo)
-            tabla(dfp.drop(columns=["ID"], errors="ignore"))
-            st.subheader("Ingresos por categoría")
-            st.bar_chart(pd.DataFrame(periodo).groupby("Categoría")["Total"].sum())
-            st.download_button("Descargar reporte CSV", dfp.to_csv(index=False).encode("utf-8-sig"), "reporte_ventas_granizados_pl.csv", "text/csv")
-        else:
-            st.info("No hay ventas vigentes para el período seleccionado.")
-
-# ----------------------------------------------------------------------- CIERRE
-with tab_cierre:
-    st.header("Cerrar caja")
-    st.write("Genera un resumen diario. El cierre se guarda en el historial.")
-    fecha_cierre = st.date_input("Fecha que desea cerrar", value=hoy(), key="fecha_cierre_input")
-    r_cierre = resumen_dia(fecha_cierre)
-    
-    st.markdown("### Resumen del día")
-    col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-    col_c1.metric("Ventas totales", dinero(r_cierre["neto"] + r_cierre["gastos_total"]), border=True)
-    col_c2.metric("Efectivo ventas", dinero(r_cierre["efectivo"]), border=True)
-    col_c3.metric("Transferencias", dinero(r_cierre["transferencias"]), border=True)
-    col_c4.metric("Gastos totales", dinero(r_cierre["gastos_total"]), border=True)
-
-    col_c5, col_c6, col_c7 = st.columns(3)
-    col_c5.metric("Caja en efectivo esperada", dinero(r_cierre["caja_efectivo"]), border=True)
-    col_c6.metric("Unidades vendidas", r_cierre["unidades"], border=True)
-    
-    efectivo_contado = col_c7.number_input("Efectivo contado en caja ($)", min_value=0, value=max(0, int(r_cierre["caja_efectivo"])), step=500, key="efectivo_contado_cierre")
-    
-    diferencia = efectivo_contado - r_cierre["caja_efectivo"]
-    if diferencia != 0:
-        st.warning(f"Diferencia en efectivo: {dinero(diferencia)}")
-    else:
-        st.success("¡Caja cuadrada perfectamente!")
-
-    observacion_cierre = st.text_input("Observación del cierre (opcional)", key="obs_cierre")
-
-    if st.button("Guardar cierre de caja", type="primary"):
-        cierre_id = f"CIERRE-{fecha_cierre}"
-        existente = next((c for c in st.session_state.cierres_caja if c.get("Fecha cierre") == str(fecha_cierre)), None)
-        nuevo_cierre = {
-            "ID": cierre_id, "Fecha cierre": str(fecha_cierre), "Fecha registro": ahora(),
-            "Ventas": len(r_cierre["ventas"]), "Efectivo": r_cierre["efectivo"], "Transferencias": r_cierre["transferencias"],
-            "Gastos": r_cierre["gastos_total"], "Caja en efectivo": r_cierre["caja_efectivo"],
-            "Efectivo contado": efectivo_contado, "Diferencia": diferencia, "Saldo neto estimado": r_cierre["neto"],
-            "Observación": observacion_cierre, "Desactualizado": False
-        }
-        if existente:
-            st.session_state.cierres_caja = [nuevo_cierre if c.get("Fecha cierre") == str(fecha_cierre) else c for c in st.session_state.cierres_caja]
-        else:
-            st.session_state.cierres_caja.append(nuevo_cierre)
-        guardar_datos()
-        avisar(f"Cierre de caja del {fecha_cierre} guardado correctamente.", "🔒")
-
-    if st.session_state.cierres_caja:
-        st.subheader("Historial de cierres de caja")
-        tabla(pd.DataFrame(st.session_state.cierres_caja[::-1]).drop(columns=["ID"], errors="ignore"))
+    col_
