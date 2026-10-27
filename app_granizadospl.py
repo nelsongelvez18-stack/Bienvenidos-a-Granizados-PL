@@ -14,7 +14,7 @@ import bcrypt
 st.set_page_config(page_title="Granizados PL - Punto de Venta", page_icon="🍧", layout="wide")
 
 # ---------------------------------------------------------------- CONFIGURACIÓN
-TZ = timezone(timedelta(hours=-5))  # Colombia (sin horario de verano)
+TZ = timezone(timedelta(hours=-5))  # Colombia
 UMBRAL_BAJO = 5
 LOGO = Path("logo_pl.png")
 
@@ -333,4 +333,6 @@ html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; backg
 .floating-badge-1 { position: absolute; top: -10px; right: -15px; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge1 4s ease-in-out infinite; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 .floating-badge-2 { position: absolute; bottom: -8px; left: -15px; background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: floatBadge2 4.5s ease-in-out infinite; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
 .banner-texto { flex: 1; }
-.banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing:
+.banner-titulo { font: 800 38px/1.1 'Outfit', sans-serif; color: #0f172a; letter-spacing: -0.5px; }
+.banner-sub { font-size: 16px; font-weight: 600; color: #64748b; margin-top: 6px; }
+.banner-ventas { background: #ffffff; border: 2px solid #636
