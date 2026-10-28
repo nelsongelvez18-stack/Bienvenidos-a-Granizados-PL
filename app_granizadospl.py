@@ -11,9 +11,56 @@ import streamlit.components.v1 as components
 from supabase import create_client, Client
 import bcrypt
 
-st.set_page_config(page_title="Granizados PL - Punto de Venta", page_icon="🍧", layout="wide")
+# ---------------------------------------------------------------- CONFIGURACIÓN DE PÁGINA Y ESTILOS
+st.set_page_config(
+    page_title="Granizados PL - Punto de Venta", 
+    page_icon="🍧", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# ---------------------------------------------------------------- CONFIGURACIÓN
+# Estilos CSS personalizados para mantener el diseño atractivo y los colores de la marca
+st.markdown("""
+    <style>
+    /* Fondo principal y tarjetas */
+    .stApp {
+        background-color: #0f172a;
+        color: #f8fafc;
+    }
+    .stCard {
+        background: rgba(30, 41, 59, 0.7);
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        margin-bottom: 20px;
+    }
+    /* Estilos de botones */
+    .stButton>button {
+        border-radius: 12px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    /* Encabezados y títulos */
+    h1, h2, h3 {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+    }
+    /* Métricas destacadas */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        color: #10b981 !important;
+        font-weight: 800;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------- CONFIGURACIÓN DE DATOS
 TZ = timezone(timedelta(hours=-5))  # Colombia
 UMBRAL_BAJO = 5
 LOGO = Path("logo_pl.png")
@@ -24,12 +71,18 @@ CLAVE_ACCESO = "Granizadospl2026**"
 PRECIOS_VENTA = {"SIN ALCOHOL": 13000, "CON ALCOHOL": 15000, "CREMOSOS": 15000}
 COLORES = {"SIN ALCOHOL": "#10b981", "CON ALCOHOL": "#ec4899", "CREMOSOS": "#f59e0b"}
 METODOS_PAGO = ["Efectivo", "Transferencia Nequi / Billeteras virtuales"]
+
 SABORES = {
     "SIN ALCOHOL": ["Bombombum", "Chicle", "Frutos Rojos", "Limonada Cerezada", "Limonada de Coco", "Limonada de Sandía", "Mango Biche", "Manzana Rosada", "Manzana Verde", "Maracumango", "Maracululo", "Maracupiña", "Mora Azul", "Uva"],
     "CON ALCOHOL": ["Agave Ice", "Andromeda Ice", "Bon Bon Bum Ice", "Candy Ice", "Cherryboom Ice", "Cosmico Ice", "Estelar Ice", "Fresa Salvaje Ice", "Fourloko Ice", "Interestelar Ice", "Luxury Ice", "Mango Explosivo Ice", "Miami Ice", "Monaco Ice", "Mora Azul Ice", "Nebula Ice", "Orion Ice", "Smirnoff Lulo Ice", "Smirnoff Limon Ice", "Tropical Caribeña Ice", "Velvet Ice"],
     "CREMOSOS": ["Bayleys", "Coco Loco", "Piña Colada"],
 }
-EXTRAS = ["Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", "Goma splash (porción)", "Barquillo (und)"]
+
+EXTRAS = [
+    "Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", 
+    "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", 
+    "Goma splash (porción)", "Barquillo (und)"
+]
 
 FRASES_MOTIVADORAS = [
     "🚀 ¡Hoy es un gran día para romper récords de ventas en Granizados PL!",
@@ -44,6 +97,7 @@ FRASES_MOTIVADORAS = [
 def clave_sabor(sabor):
     return "Sabor Maracupíña" if sabor == "Maracupiña" else f"Sabor {sabor}"
 
+# Estructura del inventario base
 INVENTARIO_BASE = {"Vaso 12 oz (und)": 0, "Pitillos (und)": 0, "Bolsa de papel (und)": 0}
 INVENTARIO_BASE.update({e: 0 for e in EXTRAS})
 for _cat, _sabores in SABORES.items():
@@ -64,7 +118,7 @@ supabase = init_supabase()
 
 # ---------------------------------------------------------------- FUNCIONES DE PERSISTENCIA (SUPABASE)
 def cargar_inventario_desde_supabase():
-    """Lee el inventario guardado en Supabase; mapea 'nombre' y 'stock'."""
+    """Lee el inventario guardado en Supabase usando las columnas 'nombre' y 'stock'."""
     try:
         res = supabase.table("inventario").select("*").execute()
         if res.data and len(res.data) > 0:
@@ -76,7 +130,7 @@ def cargar_inventario_desde_supabase():
         else:
             return INVENTARIO_BASE.copy()
     except Exception as e:
-        st.warning(f"Error consultando inventario: {e}")
+        st.warning(f"Error consultando inventario desde la base de datos: {e}")
         return INVENTARIO_BASE.copy()
 
 def guardar_item_inventario(nombre_item, nuevo_stock):
@@ -90,24 +144,26 @@ def guardar_item_inventario(nombre_item, nuevo_stock):
         st.error(f"Error guardando inventario en Supabase: {e}")
 
 def registrar_compra_db(item, cantidad, costo_total):
-    """Registra una compra en la tabla 'compras' y suma al stock persistente."""
+    """Registra una compra usando la estructura exacta de tu tabla (descripcion, monto, proveedor, fecha)."""
     try:
+        descripcion_texto = f"Compra/Ingreso de {cantidad} unidades de {item}"
         supabase.table("compras").insert({
-            "item": item,
-            "cantidad": int(cantidad),
-            "costo_total": int(costo_total),
+            "descripcion": descripcion_texto,
+            "monto": int(costo_total),
+            "proveedor": "General",
             "fecha": datetime.now(TZ).isoformat()
         }).execute()
         
+        # Actualización de la sesión y sincronización con Supabase
         st.session_state.inventario[item] = st.session_state.inventario.get(item, 0) + int(cantidad)
         guardar_item_inventario(item, st.session_state.inventario[item])
         return True
     except Exception as e:
-        st.error(f"Error registrando compra: {e}")
+        st.error(f"Error registrando la compra: {e}")
         return False
 
 def registrar_venta_db(categoria, sabor, precio, metodo_pago, notas=""):
-    """Registra la venta en 'ventas' y descuenta del stock en Supabase."""
+    """Registra la venta en 'ventas' y descuenta automáticamente los insumos del stock."""
     try:
         supabase.table("ventas").insert({
             "categoria": categoria,
@@ -118,11 +174,13 @@ def registrar_venta_db(categoria, sabor, precio, metodo_pago, notas=""):
             "fecha": datetime.now(TZ).isoformat()
         }).execute()
 
+        # Descontar del sabor específico
         cs = clave_sabor(sabor)
         if cs in st.session_state.inventario and st.session_state.inventario[cs] > 0:
             st.session_state.inventario[cs] -= 1
             guardar_item_inventario(cs, st.session_state.inventario[cs])
 
+        # Descontar vasos y pitillos automáticamente
         for insumo in ["Vaso 12 oz (und)", "Pitillos (und)"]:
             if insumo in st.session_state.inventario and st.session_state.inventario[insumo] > 0:
                 st.session_state.inventario[insumo] -= 1
@@ -130,7 +188,7 @@ def registrar_venta_db(categoria, sabor, precio, metodo_pago, notas=""):
                 
         return True
     except Exception as e:
-        st.error(f"Error registrando venta: {e}")
+        st.error(f"Error registrando la venta: {e}")
         return False
 
 # ---------------------------------------------------------------- ESTADO DE SESIÓN
@@ -140,109 +198,159 @@ if "autenticado" not in st.session_state:
 if "inventario" not in st.session_state:
     st.session_state.inventario = cargar_inventario_desde_supabase()
 
-# ---------------------------------------------------------------- AUTENTICACIÓN
+# ---------------------------------------------------------------- PANTALLA DE AUTENTICACIÓN
 if not st.session_state.autenticado:
-    st.title("🍧 Granizados PL - Acceso al Sistema")
+    st.markdown("<h1 style='text-align: center;'>🍧 Granizados PL - Punto de Venta</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if LOGO.exists():
-            st.image(str(LOGO), width=200)
-        st.subheader("Iniciar Sesión")
+            st.image(str(LOGO), use_container_width=True)
+        
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        st.subheader("🔐 Iniciar Sesión")
         pwd_input = st.text_input("Ingrese la contraseña de acceso:", type="password")
-        if st.button("Ingresar", use_container_width=True):
+        if st.button("🚀 Ingresar al Sistema", use_container_width=True, type="primary"):
             if pwd_input == CLAVE_ACCESO:
                 st.session_state.autenticado = True
                 st.session_state.inventario = cargar_inventario_desde_supabase()
-                st.success("¡Bienvenido!")
+                st.success("¡Bienvenido a Granizados PL!")
                 st.rerun()
             else:
                 st.error("Contraseña incorrecta.")
+        st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# ---------------------------------------------------------------- NAVEGACIÓN
-st.sidebar.title("🍧 Granizados PL")
-if LOGO.exists():
-    st.sidebar.image(str(LOGO), width=150)
+# ---------------------------------------------------------------- BARRA LATERAL (NAVEGACIÓN)
+st.sidebar.markdown("<h2 style='text-align: center;'>🍧 Granizados PL</h2>", unsafe_allow_html=True)
 
-if st.sidebar.button("🔒 Cerrar Sesión"):
-    st.session_state.autenticado = False
-    st.rerun()
+if LOGO.exists():
+    st.sidebar.image(str(LOGO), use_container_width=True)
 
 opcion = st.sidebar.radio(
-    "Menú de Opciones:",
+    "Navegación:",
     ["🛒 Registrar Venta", "📦 Compras e Inventario", "📊 Reportes y Estadística"]
 )
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
+    st.session_state.autenticado = False
+    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.info(random.choice(FRASES_MOTIVADORAS))
 
 # ---------------------------------------------------------------- 1. REGISTRAR VENTA
 if opcion == "🛒 Registrar Venta":
-    st.header("🛒 Registrar Nueva Venta")
+    st.title("🛒 Punto de Venta - Granizados PL")
     
-    cat = st.selectbox("Categoría:", list(SABORES.keys()))
-    sab = st.selectbox("Sabor:", SABORES[cat])
-    pago = st.selectbox("Método de Pago:", METODOS_PAGO)
-    precio = PRECIOS_VENTA[cat]
-    notas = st.text_input("Notas adicionales (opcional):")
+    # Pestañas visuales por categoría de producto
+    tab_sin, tab_con, tab_crem = st.tabs([
+        "🟢 SIN ALCOHOL ($13,000)", 
+        "💗 CON ALCOHOL ($15,000)", 
+        "🟡 CREMOSOS ($15,000)"
+    ])
     
-    st.write(f"**Precio:** ${precio:,}")
-    
-    if st.button("✅ Confirmar Venta", type="primary", use_container_width=True):
-        if registrar_venta_db(cat, sab, precio, pago, notas):
-            st.balloons()
-            st.success(f"¡Venta de {sab} registrada con éxito!")
+    def formulario_venta(categoria):
+        st.markdown(f"<div class='stCard' style='border-left: 5px solid {COLORES[categoria]};'>", unsafe_allow_html=True)
+        st.subheader(f"Categoría: {categoria}")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            sabor_sel = st.selectbox("Seleccione el Sabor:", SABORES[categoria], key=f"sab_{categoria}")
+            pago_sel = st.selectbox("Método de Pago:", METODOS_PAGO, key=f"pago_{categoria}")
+        
+        with col_b:
+            precio_unitario = PRECIOS_VENTA[categoria]
+            st.markdown(f"### Precio: **${precio_unitario:,}**")
+            notas_input = st.text_input("Notas adicionales (opcional):", key=f"notas_{categoria}")
+        
+        # Muestra disponibilidad del sabor seleccionado
+        cs = clave_sabor(sabor_sel)
+        stock_sabor = st.session_state.inventario.get(cs, 0)
+        st.caption(f"📦 Unidades de **{sabor_sel}** disponibles en inventario: **{stock_sabor}**")
+        
+        if st.button(f"✅ Confirmar Venta de {sabor_sel}", type="primary", use_container_width=True, key=f"btn_{categoria}"):
+            if registrar_venta_db(categoria, sabor_sel, precio_unitario, pago_sel, notas_input):
+                st.balloons()
+                st.success(f"¡Venta registrada con éxito! ({sabor_sel} - ${precio_unitario:,})")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab_sin:
+        formulario_venta("SIN ALCOHOL")
+    with tab_con:
+        formulario_venta("CON ALCOHOL")
+    with tab_crem:
+        formulario_venta("CREMOSOS")
 
 # ---------------------------------------------------------------- 2. COMPRAS E INVENTARIO
 elif opcion == "📦 Compras e Inventario":
-    st.header("📦 Gestión de Inventario y Registro de Compras")
+    st.title("📦 Gestión de Compras y Control de Stock")
     
-    tab1, tab2 = st.tabs(["Ingresar Compra", "Estado del Inventario"])
+    tab1, tab2 = st.tabs(["📥 Ingresar Compras", "📋 Estado del Inventario Real"])
     
     with tab1:
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
         st.subheader("Registrar Nueva Compra / Reabastecimiento")
-        item_compra = st.selectbox("Seleccione el producto o insumo:", list(INVENTARIO_BASE.keys()))
-        cant_compra = st.number_input("Cantidad que ingresa:", min_value=1, value=10, step=1)
-        costo_compra = st.number_input("Costo total ($):", min_value=0, value=0, step=500)
         
-        if st.button("📥 Guardar Compra", use_container_width=True):
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            item_compra = st.selectbox("Seleccione Producto o Insumo:", list(INVENTARIO_BASE.keys()))
+            cant_compra = st.number_input("Cantidad que ingresa:", min_value=1, value=10, step=1)
+        
+        with col_c2:
+            costo_compra = st.number_input("Costo Total Invertido ($):", min_value=0, value=0, step=1000)
+        
+        if st.button("📥 Guardar e Incrementar Inventario", type="primary", use_container_width=True):
             if registrar_compra_db(item_compra, cant_compra, costo_compra):
-                st.success(f"Se agregaron {cant_compra} unidades a '{item_compra}'.")
+                st.success(f"¡Genial! Se agregaron {cant_compra} unidades a '{item_compra}' y se guardó en Supabase.")
                 st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with tab2:
-        st.subheader("Inventario Actual en Tiempo Real")
-        if st.button("🔄 Recargar Inventario desde Supabase"):
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        st.subheader("Inventario en Tiempo Real (Sincronizado con Supabase)")
+        
+        if st.button("🔄 Recargar Datos de la Base de Datos"):
             st.session_state.inventario = cargar_inventario_desde_supabase()
             st.rerun()
-            
-        df_inv = pd.DataFrame([
-            {"Producto / Insumo": k, "Cantidad Disponible": v} 
-            for k, v in st.session_state.inventario.items()
-        ])
         
-        st.dataframe(df_inv, use_container_width=True)
+        # Filtro de búsqueda en inventario
+        filtro_inv = st.text_input("🔍 Buscar insumo o sabor en inventario:")
+        
+        datos_inv = [
+            {"Producto / Insumo / Sabor": k, "Stock Disponible": v, "Estado": "⚠️ Bajo Stock" if v <= UMBRAL_BAJO else "✅ Disponible"} 
+            for k, v in st.session_state.inventario.items()
+            if filtro_inv.lower() in k.lower()
+        ]
+        
+        df_inv = pd.DataFrame(datos_inv)
+        st.dataframe(df_inv, use_container_width=True, height=450)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------------------------------------------------------------- 3. REPORTES Y ESTADÍSTICAS
+# ---------------------------------------------------------------- 3. REPORTES Y ESTADÍSTICA
 elif opcion == "📊 Reportes y Estadística":
-    st.header("📊 Reportes y Métricas de Ventas")
+    st.title("📊 Reportes y Métricas de Rendimiento")
     
     try:
         res = supabase.table("ventas").select("*").execute()
         if res.data:
             df_v = pd.DataFrame(res.data)
             
+            # Resumen general con diseño de tarjetas
             total_recaudado = df_v["precio"].sum()
             total_unidades = len(df_v)
             
-            col1, col2 = st.columns(2)
-            col1.metric("💰 Ventas Totales ($)", f"${total_recaudado:,}")
-            col2.metric("🍧 Granizados Vendidos", f"{total_unidades} und")
+            m_col1, m_col2 = st.columns(2)
+            with m_col1:
+                st.markdown(f"<div class='stCard'><h3>💰 Total Recaudado</h3><h2>${total_recaudado:,}</h2></div>", unsafe_allow_html=True)
+            with m_col2:
+                st.markdown(f"<div class='stCard'><h3>🍧 Total Granizados Vendidos</h3><h2>{total_unidades} und</h2></div>", unsafe_allow_html=True)
             
-            st.markdown("---")
-            st.subheader("🍧 Ventas Detalladas por Nombre de Sabor")
+            st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+            st.subheader("📊 Desglose de Ventas por Nombre de Sabor")
             
             cat_filtro = st.selectbox("Filtrar por Categoría:", ["Todas"] + list(SABORES.keys()))
             
@@ -250,6 +358,7 @@ elif opcion == "📊 Reportes y Estadística":
                 df_v = df_v[df_v["categoria"] == cat_filtro]
             
             if not df_v.empty:
+                # Agrupación detallada por Sabor
                 df_sabores = df_v.groupby(["categoria", "sabor"]).agg(
                     Cantidad_Vendida=("sabor", "count"),
                     Total_Recaudado=("precio", "sum")
@@ -257,15 +366,19 @@ elif opcion == "📊 Reportes y Estadística":
                 
                 st.dataframe(df_sabores, use_container_width=True)
                 
+                # Sabor más vendido y menos vendido
                 mejor_sabor = df_sabores.iloc[0]
                 peor_sabor = df_sabores.iloc[-1]
                 
-                m1, m2 = st.columns(2)
-                m1.success(f"🔥 **Sabor Más Vendido:** {mejor_sabor['sabor']} ({mejor_sabor['Cantidad_Vendida']} unidades)")
-                m2.warning(f"⚠️ **Sabor Con Menor Salida:** {peor_sabor['sabor']} ({peor_sabor['Cantidad_Vendida']} unidades)")
+                res_col1, res_col2 = st.columns(2)
+                with res_col1:
+                    st.success(f"🔥 **Sabor Más Vendido:** {mejor_sabor['sabor']} ({mejor_sabor['Cantidad_Vendida']} unidades)")
+                with res_col2:
+                    st.warning(f"⚠️ **Sabor Con Menor Salida:** {peor_sabor['sabor']} ({peor_sabor['Cantidad_Vendida']} unidades)")
             else:
-                st.info("No hay registros para la categoría seleccionada.")
+                st.info("No hay registros de ventas para la categoría seleccionada.")
+            st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.info("Aún no se han registrado ventas en la base de datos.")
     except Exception as e:
-        st.error(f"Error al cargar reportes desde Supabase: {e}")
+        st.error(f"Error al cargar reportes desde la base de datos: {e}")
