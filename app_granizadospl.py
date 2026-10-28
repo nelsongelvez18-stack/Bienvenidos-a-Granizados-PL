@@ -93,7 +93,7 @@ def suma(items, campo="Total"):
     return sum(int(i.get(campo, 0)) for i in items)
 
 
-# ------------------------------------------------------------------------ CARGA PERSISTENTE SUPABASE
+# ------------------------------------------------------------------------ CARGA Y PERSISTENCIA SUPABASE
 def cargar_inventario_supabase():
     try:
         res = supabase.table("inventario").select("*").execute()
@@ -126,6 +126,7 @@ def cargar_tabla_supabase(nombre_tabla):
             registros = []
             for row in res.data:
                 item = dict(row)
+                # Normalización robusta para leer independientemente de cómo se guardó
                 item["ID"] = str(item.get("ID", item.get("id", item.get("venta_id", ""))))
                 item["Fecha"] = str(item.get("Fecha", item.get("fecha", "")))
                 item["Sabor"] = str(item.get("Sabor", item.get("sabor", "")))
@@ -227,13 +228,25 @@ if "_aviso" in st.session_state:
 
 # ------------------------------------------------------------------- LÓGICA DE NEGOCIO ORIGINAL
 def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
-    mov = {"Fecha": ahora(), "Producto": producto, "Tipo": tipo, "Cantidad": int(cantidad), "Detalle": detalle, "Referencia": referencia}
+    mov = {
+        "Fecha": ahora(), "fecha": ahora(),
+        "Producto": producto, "producto": producto,
+        "Tipo": tipo, "tipo": tipo,
+        "Cantidad": int(cantidad), "cantidad": int(cantidad),
+        "Detalle": detalle, "detalle": detalle,
+        "Referencia": referencia
+    }
     st.session_state.movimientos.append(mov)
     guardar_registro_supabase("movimientos", mov)
 
 
 def registrar_anulacion(tipo, identificador, detalle):
-    anul = {"Fecha": ahora(), "Tipo": tipo, "ID": str(identificador), "Detalle": detalle}
+    anul = {
+        "Fecha": ahora(), "fecha": ahora(),
+        "Tipo": tipo, "tipo": tipo,
+        "ID": str(identificador), "id": str(identificador),
+        "Detalle": detalle, "detalle": detalle
+    }
     st.session_state.anulaciones.append(anul)
     guardar_registro_supabase("anulaciones", anul)
 
@@ -241,9 +254,9 @@ def registrar_anulacion(tipo, identificador, detalle):
 def ventas_vigentes(desde=None, hasta=None):
     resultado = []
     for v in st.session_state.ventas:
-        if v.get("Estado", "Vigente") != "Vigente":
+        if v.get("Estado", v.get("estado", "Vigente")) != "Vigente":
             continue
-        f = str(v.get("Fecha", ""))[:10]
+        f = str(v.get("Fecha", v.get("fecha", "")))[:10]
         if (desde and f < str(desde)) or (hasta and f > str(hasta)):
             continue
         resultado.append(v)
@@ -251,20 +264,20 @@ def ventas_vigentes(desde=None, hasta=None):
 
 
 def compras_vigentes():
-    return [c for c in st.session_state.compras if c.get("Estado", "Vigente") == "Vigente"]
+    return [c for c in st.session_state.compras if c.get("Estado", c.get("estado", "Vigente")) == "Vigente"]
 
 
 def gastos_vigentes(fecha=None):
-    return [g for g in st.session_state.gastos if not g.get("Anulado", False) and (fecha is None or str(g.get("Fecha", ""))[:10] == str(fecha))]
+    return [g for g in st.session_state.gastos if not g.get("Anulado", g.get("anulado", False)) and (fecha is None or str(g.get("Fecha", g.get("fecha", "")))[:10] == str(fecha))]
 
 
 def resumen_dia(fecha):
     f = str(fecha)
     ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
-    efectivo = suma([v for v in ventas if v.get("Medio de pago") == "Efectivo"])
-    transf = suma([v for v in ventas if v.get("Medio de pago") != "Efectivo"])
-    gastos_total = suma(gastos, "Valor")
-    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago") == "Efectivo"], "Valor")
+    efectivo = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) == "Efectivo"])
+    transf = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) != "Efectivo"])
+    gastos_total = suma(gastos, "Valor") if suma(gastos, "Valor") > 0 else suma(gastos, "valor")
+    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago", g.get("medio_pago", "")) == "Efectivo"], "Valor")
     return {"ventas": ventas, "gastos": gastos, "efectivo": efectivo, "transferencias": transf,
             "gastos_total": gastos_total, "caja_efectivo": efectivo - gastos_efectivo,
             "neto": efectivo + transf - gastos_total, "unidades": suma(ventas, "Cantidad")}
@@ -278,10 +291,10 @@ def marcar_cierre_desactualizado(fecha):
 
 
 def anular_venta(venta_id):
-    venta = next((v for v in st.session_state.ventas if str(v.get("ID")) == str(venta_id) and v.get("Estado", "Vigente") == "Vigente"), None)
+    venta = next((v for v in st.session_state.ventas if str(v.get("ID", v.get("id", ""))) == str(venta_id) and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"), None)
     if not venta:
         return False, "No se encontró la venta vigente."
-    consumos = venta.get("Consumos", {})
+    consumos = venta.get("Consumos", venta.get("consumos", {}))
     if isinstance(consumos, str):
         try:
             consumos = json.loads(consumos)
@@ -292,9 +305,10 @@ def anular_venta(venta_id):
         st.session_state.inventario[producto] = nuevo_stock
         guardar_stock_supabase(producto, nuevo_stock)
         registrar_movimiento(producto, "Entrada por anulación de venta", cantidad, "Devolución de inventario", str(venta_id))
-    venta["Estado"], venta["Fecha anulación"] = "Anulada", ahora()
-    actualizar_registro_supabase("ventas", {"Estado": "Anulada", "Fecha anulación": venta["Fecha anulación"]}, "ID", str(venta_id))
-    marcar_cierre_desactualizado(venta["Fecha"][:10])
+    venta["Estado"] = "Anulada"
+    venta["Fecha anulación"] = ahora()
+    actualizar_registro_supabase("ventas", {"Estado": "Anulada", "estado": "Anulada", "Fecha anulación": venta["Fecha anulación"]}, "ID", str(venta_id))
+    marcar_cierre_desactualizado(str(venta.get("Fecha", ""))[:10])
     registrar_anulacion("Venta", str(venta_id), "Venta anulada")
     return True, "Venta anulada; el inventario consumido fue devuelto."
 
@@ -304,8 +318,8 @@ def ids_del_pedido(venta_id):
     if vid.count("-") < 2:
         return [vid]
     base = vid.rsplit("-", 1)[0]
-    ids = [str(v["ID"]) for v in st.session_state.ventas
-           if str(v.get("ID", "")).startswith(base + "-") and v.get("Estado", "Vigente") == "Vigente"]
+    ids = [str(v.get("ID", v.get("id", ""))) for v in st.session_state.ventas
+           if str(v.get("ID", v.get("id", ""))).startswith(base + "-") and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"]
     return ids or [vid]
 
 
@@ -596,8 +610,10 @@ with tab_ventas:
                     obs = observacion.strip()
                     if len(lineas) > 1:
                         obs = f"{obs} · Pedido {pedido_id} ({n}/{len(lineas)})".strip(" ·")
+                    
+                    # Estructura completa compatible con cualquier variante de columnas en Supabase
                     nueva_venta = {
-                        "ID": f"{pedido_id}-{n}", "venta_id": f"{pedido_id}-{n}",
+                        "ID": f"{pedido_id}-{n}", "id": f"{pedido_id}-{n}", "venta_id": f"{pedido_id}-{n}",
                         "Fecha": ahora(), "fecha": ahora(),
                         "Cliente": cliente.strip() or "Cliente general", "cliente": cliente.strip() or "Cliente general",
                         "Categoría": l["Categoría"], "categoria": l["Categoría"],
@@ -607,7 +623,9 @@ with tab_ventas:
                         "Precio unitario": l["Precio unitario"], "precio_unitario": l["Precio unitario"],
                         "Total": l["Cantidad"] * l["Precio unitario"], "total": l["Cantidad"] * l["Precio unitario"],
                         "Medio de pago": metodo_pago, "medio_pago": metodo_pago,
-                        "Observación": obs, "Consumos": json.dumps(cons), "Estado": "Vigente", "estado": "Vigente"}
+                        "Observación": obs, "Consumos": json.dumps(cons), "consumos": json.dumps(cons),
+                        "Estado": "Vigente", "estado": "Vigente"
+                    }
                     st.session_state.ventas.append(nueva_venta)
                     guardar_registro_supabase("ventas", nueva_venta)
             st.session_state.carrito = []
@@ -773,19 +791,25 @@ with tab_caja:
             registrar_movimiento(prod_compra, "Entrada por compra", cant_compra, f"Compra a {proveedor or 'Proveedor general'}", compra_id)
 
             nueva_compra = {
-                "ID": compra_id, "producto": prod_compra, "Producto": prod_compra,
+                "ID": compra_id, "id": compra_id,
+                "producto": prod_compra, "Producto": prod_compra,
                 "Cantidad": int(cant_compra), "cantidad": int(cant_compra),
                 "Costo total": costo_total_calculado, "costo_total": costo_total_calculado,
-                "Proveedor": proveedor, "Medio de pago": medio_pago_compra, "Estado": "Vigente", "Fecha": ahora(), "fecha": ahora()
+                "Proveedor": proveedor, "proveedor": proveedor,
+                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
+                "Estado": "Vigente", "estado": "Vigente",
+                "Fecha": ahora(), "fecha": ahora()
             }
             st.session_state.compras.append(nueva_compra)
             guardar_registro_supabase("compras", nueva_compra)
 
             nuevo_gasto = {
-                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "Fecha": ahora(), "fecha": ahora(),
+                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
+                "Fecha": ahora(), "fecha": ahora(),
                 "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "concepto": f"Compra de {cant_compra} und de {prod_compra}",
                 "Valor": costo_total_calculado, "valor": costo_total_calculado, "monto": costo_total_calculado,
-                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra, "Compra ID": compra_id, "Anulado": False
+                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
+                "Compra ID": compra_id, "compra_id": compra_id, "Anulado": False, "anulado": False
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
@@ -806,10 +830,12 @@ with tab_caja:
                 st.error("Debes escribir el concepto del gasto.")
             else:
                 nuevo_gasto = {
-                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "Fecha": ahora(), "fecha": ahora(),
+                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
+                    "Fecha": ahora(), "fecha": ahora(),
                     "Concepto": concepto_gasto.strip(), "concepto": concepto_gasto.strip(),
                     "Valor": valor_gasto, "valor": valor_gasto, "monto": valor_gasto,
-                    "Medio de pago": medio_pago_gasto, "medio_pago": medio_pago_gasto, "Compra ID": "", "Anulado": False
+                    "Medio de pago": medio_pago_gasto, "medio_pago": medio_pago_gasto,
+                    "Compra ID": "", "compra_id": "", "Anulado": False, "anulado": False
                 }
                 st.session_state.gastos.append(nuevo_gasto)
                 guardar_registro_supabase("gastos", nuevo_gasto)
