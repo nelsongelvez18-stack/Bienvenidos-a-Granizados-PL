@@ -93,7 +93,7 @@ def suma(items, campo="Total"):
     return sum(int(i.get(campo, 0)) for i in items)
 
 
-# ------------------------------------------------------------------------ CARGA PERSISTENTE GARANTIZADA
+# ------------------------------------------------------------------------ CARGA PERSISTENTE SUPABASE
 def cargar_inventario_supabase():
     try:
         res = supabase.table("inventario").select("*").execute()
@@ -126,7 +126,6 @@ def cargar_tabla_supabase(nombre_tabla):
             registros = []
             for row in res.data:
                 item = dict(row)
-                # Mapeo robusto garantizando las llaves que exigen los filtros de tu lógica
                 item["ID"] = str(item.get("ID", item.get("id", item.get("venta_id", ""))))
                 item["Fecha"] = str(item.get("Fecha", item.get("fecha", "")))
                 item["Sabor"] = str(item.get("Sabor", item.get("sabor", "")))
