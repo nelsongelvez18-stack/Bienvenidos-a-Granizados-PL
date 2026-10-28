@@ -172,6 +172,10 @@ st.session_state.compras = cargar_tabla_supabase("compras")
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
+# INICIALIZACIÓN DE VARIABLES PARA REINICIO DE CAJA
+if "efectivo_contado_val" not in st.session_state:
+    st.session_state.efectivo_contado_val = 0.0
+
 
 def avisar(mensaje, icono=None):
     st.session_state["_aviso"] = (mensaje, icono)
@@ -277,7 +281,6 @@ def gastos_vigentes(fecha=None):
 
 def resumen_dia(fecha):
     f = str(fecha)
-    # ventas_vigentes ya filtra por estado "Vigente", por lo que las anuladas se descuentan automáticamente
     ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
     efectivo = suma([v for v in ventas if str(v.get("Medio de pago", v.get("medio_pago", ""))) == "Efectivo"])
     transf = suma([v for v in ventas if str(v.get("Medio de pago", v.get("medio_pago", ""))) != "Efectivo"])
@@ -947,7 +950,14 @@ with tab_cierre:
     c2.metric("Gastos totales", dinero(r_cierre["gastos_total"]))
     c3.metric("Neto estimado", dinero(r_cierre["neto"]))
 
-    efectivo_contado = st.number_input("Dinero en efectivo contado en caja ($)", min_value=0.0, value=max(0.0, float(r_cierre["caja_efectivo"])), step=1000.0)
+    # Campo vinculado a st.session_state para permitir reinicio a cero
+    efectivo_contado = st.number_input(
+        "Dinero en efectivo contado en caja ($)", 
+        min_value=0.0, 
+        step=1000.0, 
+        key="efectivo_contado_val"
+    )
+    
     diferencia = efectivo_contado - r_cierre["caja_efectivo"]
     if diferencia != 0:
         st.warning(f"Diferencia en efectivo: {dinero_md(diferencia)}")
@@ -963,4 +973,8 @@ with tab_cierre:
         }
         st.session_state.cierres_caja.append(cierre_data)
         guardar_registro_supabase("cierres_caja", cierre_data)
-        avisar("¡Cierre de caja guardado con éxito!", "🔒")
+        
+        # Restablecer campos a cero para dejar la interfaz lista para el siguiente turno/cierre
+        st.session_state.efectivo_contado_val = 0.0
+        
+        avisar("¡Cierre de caja guardado con éxito y valores restablecidos a cero!", "🔒")
