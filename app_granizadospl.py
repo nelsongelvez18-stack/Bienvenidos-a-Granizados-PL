@@ -820,31 +820,19 @@ with tab_caja:
             guardar_stock_supabase(prod_compra, nuevo_stock)
             registrar_movimiento(prod_compra, "Entrada por compra", cant_compra, f"Compra a {proveedor or 'Proveedor general'}", compra_id)
 
-            id_compra = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             fecha_compra = ahora()
-            
             descripcion_compra = f"Compra de {cant_compra} und de {prod_compra} a {proveedor or 'Proveedor general'}"
             
+            # Diccionario exactamente alineado a las 8 columnas de tu tabla 'compras' en Supabase
             nueva_compra = {
-                "id": id_compra,
-                "ID": id_compra,
-                "producto": prod_compra,
-                "Producto": prod_compra,
-                "cantidad": int(cant_compra),
-                "Cantidad": int(cant_compra),
-                "costo_total": costo_total_calculado,
-                "Costo total": costo_total_calculado,
-                "monto": costo_total_calculado,       # <-- Añadido para evitar error not-null constraint en 'monto'
-                "Monto": costo_total_calculado,       # <-- Versión con mayúscula por compatibilidad
-                "proveedor": proveedor,
-                "Proveedor": proveedor,
+                "id": compra_id,
                 "descripcion": descripcion_compra,
-                "medio_pago": medio_pago_compra,
-                "Medio de pago": medio_pago_compra,
-                "estado": "Vigente",
-                "Estado": "Vigente",
+                "monto": costo_total_calculado,
+                "proveedor": proveedor or "Proveedor general",
                 "fecha": fecha_compra,
-                "Fecha": fecha_compra
+                "producto": prod_compra,
+                "cantidad": int(cant_compra),
+                "medio_pago": medio_pago_compra
             }
             st.session_state.compras.append(nueva_compra)
             guardar_registro_supabase("compras", nueva_compra)
@@ -852,20 +840,13 @@ with tab_caja:
             id_gasto = "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             nuevo_gasto = {
                 "id": id_gasto,
-                "ID": id_gasto,
                 "fecha": fecha_compra,
-                "Fecha": fecha_compra,
                 "concepto": descripcion_compra,
-                "Concepto": descripcion_compra,
                 "valor": costo_total_calculado,
-                "Valor": costo_total_calculado,
                 "monto": costo_total_calculado,
                 "medio_pago": medio_pago_compra,
-                "Medio de pago": medio_pago_compra,
-                "compra_id": id_compra,
-                "Compra ID": id_compra,
-                "anulado": False,
-                "Anulado": False
+                "compra_id": compra_id,
+                "anulado": False
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
@@ -889,20 +870,13 @@ with tab_caja:
                 fecha_gasto = ahora()
                 nuevo_gasto = {
                     "id": id_gasto,
-                    "ID": id_gasto,
-                    "fecha": fecha_gasto,
                     "Fecha": fecha_gasto,
                     "concepto": concepto_gasto.strip(),
-                    "Concepto": concepto_gasto.strip(),
                     "valor": valor_gasto,
-                    "Valor": valor_gasto,
                     "monto": valor_gasto,
                     "medio_pago": medio_pago_gasto,
-                    "Medio de pago": medio_pago_gasto,
                     "compra_id": "",
-                    "Compra ID": "",
-                    "anulado": False,
-                    "Anulado": False
+                    "anulado": False
                 }
                 st.session_state.gastos.append(nuevo_gasto)
                 guardar_registro_supabase("gastos", nuevo_gasto)
