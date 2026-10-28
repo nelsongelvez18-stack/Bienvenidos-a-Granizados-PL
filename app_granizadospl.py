@@ -222,13 +222,17 @@ if "_aviso" in st.session_state:
 # ------------------------------------------------------------------- LÓGICA DE NEGOCIO ORIGINAL
 def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
     mov = {
-        "id": "M-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-        "ID": "M-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-        "Fecha": ahora(), "fecha": ahora(),
-        "Producto": producto, "producto": producto,
-        "Tipo": tipo, "tipo": tipo,
-        "Cantidad": int(cantidad), "cantidad": int(cantidad),
-        "Detalle": detalle, "detalle": detalle,
+        "fecha": ahora(),
+        "Fecha": ahora(),
+        "producto": producto,
+        "Producto": producto,
+        "tipo": tipo,
+        "Tipo": tipo,
+        "cantidad": int(cantidad),
+        "Cantidad": int(cantidad),
+        "detalle": detalle,
+        "Detalle": detalle,
+        "referencia": referencia,
         "Referencia": referencia
     }
     st.session_state.movimientos.append(mov)
@@ -237,11 +241,14 @@ def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
 
 def registrar_anulacion(tipo, identificador, detalle):
     anul = {
-        "id": "A-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-        "ID": str(identificador), "id_ref": str(identificador),
-        "Fecha": ahora(), "fecha": ahora(),
-        "Tipo": tipo, "tipo": tipo,
-        "Detalle": detalle, "detalle": detalle
+        "fecha": ahora(),
+        "Fecha": ahora(),
+        "tipo": tipo,
+        "Tipo": tipo,
+        "id": str(identificador),
+        "ID": str(identificador),
+        "detalle": detalle,
+        "Detalle": detalle
     }
     st.session_state.anulaciones.append(anul)
     guardar_registro_supabase("anulaciones", anul)
@@ -607,7 +614,6 @@ with tab_ventas:
                     if len(lineas) > 1:
                         obs = f"{obs} · Pedido {pedido_id} ({n}/{len(lineas)})".strip(" ·")
                     
-                    # Diccionario con duplicación dual de claves (minúsculas y mayúsculas) para evitar cualquier conflicto de esquema en Supabase
                     id_linea = f"{pedido_id}-{n}"
                     fecha_actual = ahora()
                     cliente_val = cliente.strip() or "Cliente general"
