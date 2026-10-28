@@ -93,7 +93,7 @@ def suma(items, campo="Total"):
     return sum(int(i.get(campo, 0)) for i in items)
 
 
-# ------------------------------------------------------------------------ CARGA PERSISTENTE
+# ------------------------------------------------------------------------ CARGA PERSISTENTE GARANTIZADA
 def cargar_inventario_supabase():
     try:
         res = supabase.table("inventario").select("*").execute()
@@ -126,14 +126,15 @@ def cargar_tabla_supabase(nombre_tabla):
             registros = []
             for row in res.data:
                 item = dict(row)
+                # Mapeo robusto garantizando las llaves que exigen los filtros de tu lógica
                 item["ID"] = str(item.get("ID", item.get("id", item.get("venta_id", ""))))
                 item["Fecha"] = str(item.get("Fecha", item.get("fecha", "")))
                 item["Sabor"] = str(item.get("Sabor", item.get("sabor", "")))
                 item["Categoría"] = str(item.get("Categoría", item.get("categoria", "")))
                 item["Presentación"] = str(item.get("Presentación", item.get("presentacion", "Vaso 12 oz")))
-                item["Total"] = int(item.get("Total", item.get("total", item.get("precio", 0))))
-                item["Precio unitario"] = int(item.get("Precio unitario", item.get("precio_unitario", 0)))
-                item["Cantidad"] = int(item.get("Cantidad", item.get("cantidad", 1)))
+                item["Total"] = int(float(item.get("Total", item.get("total", item.get("precio", 0)))))
+                item["Precio unitario"] = int(float(item.get("Precio unitario", item.get("precio_unitario", 0))))
+                item["Cantidad"] = int(float(item.get("Cantidad", item.get("cantidad", 1))))
                 item["Medio de pago"] = str(item.get("Medio de pago", item.get("medio_pago", item.get("metodo_pago", "Efectivo"))))
                 item["Estado"] = str(item.get("Estado", item.get("estado", "Vigente")))
                 item["Valor"] = float(item.get("Valor", item.get("valor", item.get("monto", item.get("costo_total", 0)))))
@@ -225,7 +226,7 @@ if "_aviso" in st.session_state:
     st.toast(_msg, icon=_ico)
 
 
-# ------------------------------------------------------------------- LÓGICA DE NEGOCIO
+# ------------------------------------------------------------------- LÓGICA DE NEGOCIO ORIGINAL
 def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
     mov = {"Fecha": ahora(), "Producto": producto, "Tipo": tipo, "Cantidad": int(cantidad), "Detalle": detalle, "Referencia": referencia}
     st.session_state.movimientos.append(mov)
