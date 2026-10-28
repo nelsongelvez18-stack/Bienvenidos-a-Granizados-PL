@@ -92,7 +92,7 @@ def suma(items, campo="Total"):
     return sum(int(i.get(campo, i.get(campo.lower(), 0))) for i in items)
 
 
-# ------------------------------------------------------------------------ CARGA DIRECTA Y PERSISTENTE
+# ------------------------------------------------------------------------ CARGA DIRECTA Y PERSISTENTE EXACTA
 def cargar_inventario_supabase():
     try:
         res = supabase.table("inventario").select("*").execute()
@@ -125,8 +125,10 @@ def cargar_tabla_supabase(nombre_tabla):
             registros = []
             for row in res.data:
                 item = dict(row)
+                # Forzar las llaves con mayúsculas idénticas a la estructura original del código
                 item["ID"] = str(item.get("ID", item.get("id", item.get("venta_id", ""))))
                 item["Fecha"] = str(item.get("Fecha", item.get("fecha", "")))
+                item["Cliente"] = str(item.get("Cliente", item.get("cliente", "Cliente general")))
                 item["Sabor"] = str(item.get("Sabor", item.get("sabor", "")))
                 item["Categoría"] = str(item.get("Categoría", item.get("categoria", "")))
                 item["Presentación"] = str(item.get("Presentación", item.get("presentacion", "Vaso 12 oz")))
@@ -246,9 +248,9 @@ def registrar_anulacion(tipo, identificador, detalle):
 def ventas_vigentes(desde=None, hasta=None):
     resultado = []
     for v in st.session_state.ventas:
-        if v.get("Estado", v.get("estado", "Vigente")) != "Vigente":
+        if v.get("Estado", "Vigente") != "Vigente":
             continue
-        f = str(v.get("Fecha", v.get("fecha", "")))[:10]
+        f = str(v.get("Fecha", ""))[:10]
         if (desde and f < str(desde)) or (hasta and f > str(hasta)):
             continue
         resultado.append(v)
@@ -256,20 +258,20 @@ def ventas_vigentes(desde=None, hasta=None):
 
 
 def compras_vigentes():
-    return [c for c in st.session_state.compras if c.get("Estado", c.get("estado", "Vigente")) == "Vigente"]
+    return [c for c in st.session_state.compras if c.get("Estado", "Vigente") == "Vigente"]
 
 
 def gastos_vigentes(fecha=None):
-    return [g for g in st.session_state.gastos if not g.get("Anulado", g.get("anulado", False)) and (fecha is None or str(g.get("Fecha", g.get("fecha", "")))[:10] == str(fecha))]
+    return [g for g in st.session_state.gastos if not g.get("Anulado", False) and (fecha is None or str(g.get("Fecha", ""))[:10] == str(fecha))]
 
 
 def resumen_dia(fecha):
     f = str(fecha)
     ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
-    efectivo = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) == "Efectivo"])
-    transf = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) != "Efectivo"])
-    gastos_total = suma(gastos, "Valor") if suma(gastos, "Valor") > 0 else suma(gastos, "valor")
-    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago", g.get("medio_pago", "")) == "Efectivo"], "Valor")
+    efectivo = suma([v for v in ventas if v.get("Medio de pago") == "Efectivo"])
+    transf = suma([v for v in ventas if v.get("Medio de pago") != "Efectivo"])
+    gastos_total = suma(gastos, "Valor")
+    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago") == "Efectivo"], "Valor")
     return {"ventas": ventas, "gastos": gastos, "efectivo": efectivo, "transferencias": transf,
             "gastos_total": gastos_total, "caja_efectivo": efectivo - gastos_efectivo,
             "neto": efectivo + transf - gastos_total, "unidades": suma(ventas, "Cantidad")}
@@ -283,10 +285,10 @@ def marcar_cierre_desactualizado(fecha):
 
 
 def anular_venta(venta_id):
-    venta = next((v for v in st.session_state.ventas if str(v.get("ID", v.get("id", ""))) == str(venta_id) and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"), None)
+    venta = next((v for v in st.session_state.ventas if str(v.get("ID")) == str(venta_id) and v.get("Estado", "Vigente") == "Vigente"), None)
     if not venta:
         return False, "No se encontró la venta vigente."
-    consumos = venta.get("Consumos", venta.get("consumos", {}))
+    consumos = venta.get("Consumos", {})
     if isinstance(consumos, str):
         try:
             consumos = json.loads(consumos)
@@ -297,10 +299,9 @@ def anular_venta(venta_id):
         st.session_state.inventario[producto] = nuevo_stock
         guardar_stock_supabase(producto, nuevo_stock)
         registrar_movimiento(producto, "Entrada por anulación de venta", cantidad, "Devolución de inventario", str(venta_id))
-    venta["Estado"] = "Anulada"
-    venta["Fecha anulación"] = ahora()
+    venta["Estado"], venta["Fecha anulación"] = "Anulada", ahora()
     actualizar_registro_supabase("ventas", {"Estado": "Anulada", "estado": "Anulada", "Fecha anulación": venta["Fecha anulación"]}, "ID", str(venta_id))
-    marcar_cierre_desactualizado(str(venta.get("Fecha", ""))[:10])
+    marcar_cierre_desactualizado(venta["Fecha"][:10])
     registrar_anulacion("Venta", str(venta_id), "Venta anulada")
     return True, "Venta anulada; el inventario consumido fue devuelto."
 
@@ -310,8 +311,8 @@ def ids_del_pedido(venta_id):
     if vid.count("-") < 2:
         return [vid]
     base = vid.rsplit("-", 1)[0]
-    ids = [str(v.get("ID", v.get("id", ""))) for v in st.session_state.ventas
-           if str(v.get("ID", v.get("id", ""))).startswith(base + "-") and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"]
+    ids = [str(v["ID"]) for v in st.session_state.ventas
+           if str(v.get("ID", "")).startswith(base + "-") and v.get("Estado", "Vigente") == "Vigente"]
     return ids or [vid]
 
 
@@ -603,19 +604,21 @@ with tab_ventas:
                     if len(lineas) > 1:
                         obs = f"{obs} · Pedido {pedido_id} ({n}/{len(lineas)})".strip(" ·")
                     
+                    # Estructura limpia y limpia de inserción compatible con Supabase
                     nueva_venta = {
-                        "ID": f"{pedido_id}-{n}", "id": f"{pedido_id}-{n}", "venta_id": f"{pedido_id}-{n}",
-                        "Fecha": ahora(), "fecha": ahora(),
-                        "Cliente": cliente.strip() or "Cliente general", "cliente": cliente.strip() or "Cliente general",
-                        "Categoría": l["Categoría"], "categoria": l["Categoría"],
-                        "Sabor": l["Sabor"], "sabor": l["Sabor"],
-                        "Presentación": l["Presentación"], "presentacion": l["Presentación"],
-                        "Cantidad": l["Cantidad"], "cantidad": l["Cantidad"],
-                        "Precio unitario": l["Precio unitario"], "precio_unitario": l["Precio unitario"],
-                        "Total": l["Cantidad"] * l["Precio unitario"], "total": l["Cantidad"] * l["Precio unitario"],
-                        "Medio de pago": metodo_pago, "medio_pago": metodo_pago,
-                        "Observación": obs, "Consumos": json.dumps(cons), "consumos": json.dumps(cons),
-                        "Estado": "Vigente", "estado": "Vigente"
+                        "ID": f"{pedido_id}-{n}",
+                        "Fecha": ahora(),
+                        "Cliente": cliente.strip() or "Cliente general",
+                        "Categoría": l["Categoría"],
+                        "Sabor": l["Sabor"],
+                        "Presentación": l["Presentación"],
+                        "Cantidad": l["Cantidad"],
+                        "Precio unitario": l["Precio unitario"],
+                        "Total": l["Cantidad"] * l["Precio unitario"],
+                        "Medio de pago": metodo_pago,
+                        "Observación": obs,
+                        "Consumos": json.dumps(cons),
+                        "Estado": "Vigente"
                     }
                     st.session_state.ventas.append(nueva_venta)
                     guardar_registro_supabase("ventas", nueva_venta)
@@ -782,25 +785,26 @@ with tab_caja:
             registrar_movimiento(prod_compra, "Entrada por compra", cant_compra, f"Compra a {proveedor or 'Proveedor general'}", compra_id)
 
             nueva_compra = {
-                "ID": compra_id, "id": compra_id,
-                "producto": prod_compra, "Producto": prod_compra,
-                "Cantidad": int(cant_compra), "cantidad": int(cant_compra),
-                "Costo total": costo_total_calculado, "costo_total": costo_total_calculado,
-                "Proveedor": proveedor, "proveedor": proveedor,
-                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
-                "Estado": "Vigente", "estado": "Vigente",
-                "Fecha": ahora(), "fecha": ahora()
+                "ID": compra_id,
+                "Producto": prod_compra,
+                "Cantidad": int(cant_compra),
+                "Costo total": costo_total_calculado,
+                "Proveedor": proveedor,
+                "Medio de pago": medio_pago_compra,
+                "Estado": "Vigente",
+                "Fecha": ahora()
             }
             st.session_state.compras.append(nueva_compra)
             guardar_registro_supabase("compras", nueva_compra)
 
             nuevo_gasto = {
-                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-                "Fecha": ahora(), "fecha": ahora(),
-                "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "concepto": f"Compra de {cant_compra} und de {prod_compra}",
-                "Valor": costo_total_calculado, "valor": costo_total_calculado, "monto": costo_total_calculado,
-                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
-                "Compra ID": compra_id, "compra_id": compra_id, "Anulado": False, "anulado": False
+                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
+                "Fecha": ahora(),
+                "Concepto": f"Compra de {cant_compra} und de {prod_compra}",
+                "Valor": costo_total_calculado,
+                "Medio de pago": medio_pago_compra,
+                "Compra ID": compra_id,
+                "Anulado": False
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
@@ -821,12 +825,13 @@ with tab_caja:
                 st.error("Debes escribir el concepto del gasto.")
             else:
                 nuevo_gasto = {
-                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-                    "Fecha": ahora(), "fecha": ahora(),
-                    "Concepto": concepto_gasto.strip(), "concepto": concepto_gasto.strip(),
-                    "Valor": valor_gasto, "valor": valor_gasto, "monto": valor_gasto,
-                    "Medio de pago": medio_pago_gasto, "medio_pago": medio_pago_gasto,
-                    "Compra ID": "", "compra_id": "", "Anulado": False, "anulado": False
+                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
+                    "Fecha": ahora(),
+                    "Concepto": concepto_gasto.strip(),
+                    "Valor": valor_gasto,
+                    "Medio de pago": medio_pago_gasto,
+                    "Compra ID": "",
+                    "Anulado": False
                 }
                 st.session_state.gastos.append(nuevo_gasto)
                 guardar_registro_supabase("gastos", nuevo_gasto)
@@ -847,8 +852,8 @@ with tab_reportes:
     vs = ventas_vigentes()
     if vs:
         df_v = pd.DataFrame(vs)
-        total_gen = df_v["Total"].sum() if "Total" in df_v.columns else df_v["total"].sum()
-        unidades_gen = df_v["Cantidad"].sum() if "Cantidad" in df_v.columns else df_v["cantidad"].sum()
+        total_gen = df_v["Total"].sum()
+        unidades_gen = df_v["Cantidad"].sum()
         m1, m2 = st.columns(2)
         m1.metric("Ventas acumuladas totales", dinero(total_gen), border=True)
         m2.metric("Unidades vendidas totales", int(unidades_gen), border=True)
@@ -858,15 +863,13 @@ with tab_reportes:
         cat_filtro = st.selectbox("Filtrar por Categoría:", ["Todas"] + list(SABORES.keys()))
         
         df_f = df_v.copy()
-        col_cat = "Categoría" if "Categoría" in df_f.columns else "categoria"
         if cat_filtro != "Todas":
-            df_f = df_f[df_f[col_cat] == cat_filtro]
+            df_f = df_f[df_f["Categoría"] == cat_filtro]
             
-        col_sabor = "Sabor" if "Sabor" in df_f.columns else "sabor"
-        if not df_f.empty and col_sabor in df_f.columns:
-            df_sabores = df_f.groupby([col_cat, col_sabor]).agg(
-                Cantidad_Vendida=("Cantidad" if "Cantidad" in df_f.columns else "cantidad", "sum"),
-                Total_Recaudado=("Total" if "Total" in df_f.columns else "total", "sum")
+        if not df_f.empty and "Sabor" in df_f.columns:
+            df_sabores = df_f.groupby(["Categoría", "Sabor"]).agg(
+                Cantidad_Vendida=("Cantidad", "sum"),
+                Total_Recaudado=("Total", "sum")
             ).reset_index().sort_values(by="Cantidad_Vendida", ascending=False)
 
             st.dataframe(df_sabores, use_container_width=True)
@@ -875,13 +878,13 @@ with tab_reportes:
             peor = df_sabores.iloc[-1]
             
             c1, c2 = st.columns(2)
-            c1.success(f"🔥 **Sabor Más Vendido:** {mejor[col_sabor]} ({mejor['Cantidad_Vendida']} und)")
-            c2.warning(f"⚠️ **Sabor Con Menor Salida:** {peor[col_sabor]} ({peor['Cantidad_Vendida']} und)")
+            c1.success(f"🔥 **Sabor Más Vendido:** {mejor['Sabor']} ({mejor['Cantidad_Vendida']} und)")
+            c2.warning(f"⚠️ **Sabor Con Menor Salida:** {peor['Sabor']} ({peor['Cantidad_Vendida']} und)")
         else:
             st.info("No hay registros para la categoría seleccionada.")
             
         st.subheader("Ventas por Categoría")
-        st.bar_chart(df_v.groupby(col_cat)["Total" if "Total" in df_v.columns else "total"].sum())
+        st.bar_chart(df_v.groupby("Categoría")["Total"].sum())
     else:
         st.info("Aún no hay suficientes ventas para generar reportes.")
 
