@@ -823,6 +823,9 @@ with tab_caja:
             id_compra = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             fecha_compra = ahora()
             
+            # Descripción asignada para cumplir con la restricción NOT NULL de la base de datos
+            descripcion_compra = f"Compra de {cant_compra} und de {prod_compra} a {proveedor or 'Proveedor general'}"
+            
             nueva_compra = {
                 "id": id_compra,
                 "ID": id_compra,
@@ -834,6 +837,8 @@ with tab_caja:
                 "Costo total": costo_total_calculado,
                 "proveedor": proveedor,
                 "Proveedor": proveedor,
+                "descripcion": descripcion_compra,
+                "Descripción": descripcion_compra,
                 "medio_pago": medio_pago_compra,
                 "Medio de pago": medio_pago_compra,
                 "estado": "Vigente",
@@ -850,8 +855,8 @@ with tab_caja:
                 "ID": id_gasto,
                 "fecha": fecha_compra,
                 "Fecha": fecha_compra,
-                "concepto": f"Compra de {cant_compra} und de {prod_compra}",
-                "Concepto": f"Compra de {cant_compra} und de {prod_compra}",
+                "concepto": descripcion_compra,
+                "Concepto": descripcion_compra,
                 "valor": costo_total_calculado,
                 "Valor": costo_total_calculado,
                 "monto": costo_total_calculado,
