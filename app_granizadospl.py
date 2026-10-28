@@ -56,7 +56,6 @@ PRODUCTOS_ELIMINADOS = {"Sachet 12 oz (und)", "Aguardiente (copa)", "Baileys (co
 
 
 # ---------------------------------------------------------------------- SUPABASE & UTILS
-@st.cache_resource
 def init_supabase() -> Client:
     url = st.secrets.get("SUPABASE_URL", st.secrets.get("supabase", {}).get("url", ""))
     key = st.secrets.get("SUPABASE_KEY", st.secrets.get("supabase", {}).get("key", ""))
@@ -90,10 +89,10 @@ def dinero_md(valor):
 
 
 def suma(items, campo="Total"):
-    return sum(int(i.get(campo, 0)) for i in items)
+    return sum(int(i.get(campo, i.get(campo.lower(), 0))) for i in items)
 
 
-# ------------------------------------------------------------------------ CARGA Y PERSISTENCIA SUPABASE
+# ------------------------------------------------------------------------ CARGA DIRECTA Y PERSISTENTE
 def cargar_inventario_supabase():
     try:
         res = supabase.table("inventario").select("*").execute()
@@ -126,7 +125,6 @@ def cargar_tabla_supabase(nombre_tabla):
             registros = []
             for row in res.data:
                 item = dict(row)
-                # Normalización robusta para leer independientemente de cómo se guardó
                 item["ID"] = str(item.get("ID", item.get("id", item.get("venta_id", ""))))
                 item["Fecha"] = str(item.get("Fecha", item.get("fecha", "")))
                 item["Sabor"] = str(item.get("Sabor", item.get("sabor", "")))
@@ -161,19 +159,14 @@ def actualizar_registro_supabase(nombre_tabla, data_update, match_col, match_val
         st.error(f"Error actualizando {nombre_tabla}: {e}")
 
 
-def sincronizar_todo_desde_supabase():
-    st.session_state.inventario = cargar_inventario_supabase()
-    st.session_state.ventas = cargar_tabla_supabase("ventas")
-    st.session_state.movimientos = cargar_tabla_supabase("movimientos")
-    st.session_state.gastos = cargar_tabla_supabase("gastos")
-    st.session_state.anulaciones = cargar_tabla_supabase("anulaciones")
-    st.session_state.cierres_caja = cargar_tabla_supabase("cierres_caja")
-    st.session_state.compras = cargar_tabla_supabase("compras")
-
-
-if "sincronizado_db" not in st.session_state:
-    sincronizar_todo_desde_supabase()
-    st.session_state["sincronizado_db"] = True
+# SINCRONIZACIÓN OBLIGATORIA EN CADA CARGA DE SESIÓN
+st.session_state.inventario = cargar_inventario_supabase()
+st.session_state.ventas = cargar_tabla_supabase("ventas")
+st.session_state.movimientos = cargar_tabla_supabase("movimientos")
+st.session_state.gastos = cargar_tabla_supabase("gastos")
+st.session_state.anulaciones = cargar_tabla_supabase("anulaciones")
+st.session_state.cierres_caja = cargar_tabla_supabase("cierres_caja")
+st.session_state.compras = cargar_tabla_supabase("compras")
 
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
@@ -211,7 +204,6 @@ def verificar_acceso():
         if st.button("Iniciar Sesión", type="primary", use_container_width=True):
             if hmac.compare_digest(str(intento), str(CLAVE_ACCESO)):
                 st.session_state["acceso_ok"] = True
-                sincronizar_todo_desde_supabase()
                 st.rerun()
             else:
                 st.error("Contraseña incorrecta.")
@@ -611,7 +603,6 @@ with tab_ventas:
                     if len(lineas) > 1:
                         obs = f"{obs} · Pedido {pedido_id} ({n}/{len(lineas)})".strip(" ·")
                     
-                    # Estructura completa compatible con cualquier variante de columnas en Supabase
                     nueva_venta = {
                         "ID": f"{pedido_id}-{n}", "id": f"{pedido_id}-{n}", "venta_id": f"{pedido_id}-{n}",
                         "Fecha": ahora(), "fecha": ahora(),
@@ -794,130 +785,4 @@ with tab_caja:
                 "ID": compra_id, "id": compra_id,
                 "producto": prod_compra, "Producto": prod_compra,
                 "Cantidad": int(cant_compra), "cantidad": int(cant_compra),
-                "Costo total": costo_total_calculado, "costo_total": costo_total_calculado,
-                "Proveedor": proveedor, "proveedor": proveedor,
-                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
-                "Estado": "Vigente", "estado": "Vigente",
-                "Fecha": ahora(), "fecha": ahora()
-            }
-            st.session_state.compras.append(nueva_compra)
-            guardar_registro_supabase("compras", nueva_compra)
-
-            nuevo_gasto = {
-                "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-                "Fecha": ahora(), "fecha": ahora(),
-                "Concepto": f"Compra de {cant_compra} und de {prod_compra}", "concepto": f"Compra de {cant_compra} und de {prod_compra}",
-                "Valor": costo_total_calculado, "valor": costo_total_calculado, "monto": costo_total_calculado,
-                "Medio de pago": medio_pago_compra, "medio_pago": medio_pago_compra,
-                "Compra ID": compra_id, "compra_id": compra_id, "Anulado": False, "anulado": False
-            }
-            st.session_state.gastos.append(nuevo_gasto)
-            guardar_registro_supabase("gastos", nuevo_gasto)
-
-            avisar(f"Compra registrada por {dinero(costo_total_calculado)} y {cant_compra} unidades de {prod_compra} sumadas.", "📦")
-
-    with sub_caja2:
-        st.subheader("Registrar Gasto Operativo")
-        with st.form("form_registrar_gasto"):
-            concepto_gasto = st.text_input("Concepto o descripción del gasto")
-            valor_gasto = st.number_input("Valor del gasto ($)", min_value=0.0, value=5000.0, step=500.0)
-            medio_pago_gasto = st.selectbox("Medio de pago gasto", METODOS_PAGO, key="pago_gasto_sel")
-
-            btn_gasto = st.form_submit_button("Registrar gasto", type="primary")
-
-        if btn_gasto:
-            if not concepto_gasto.strip():
-                st.error("Debes escribir el concepto del gasto.")
-            else:
-                nuevo_gasto = {
-                    "ID": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"), "id": "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f"),
-                    "Fecha": ahora(), "fecha": ahora(),
-                    "Concepto": concepto_gasto.strip(), "concepto": concepto_gasto.strip(),
-                    "Valor": valor_gasto, "valor": valor_gasto, "monto": valor_gasto,
-                    "Medio de pago": medio_pago_gasto, "medio_pago": medio_pago_gasto,
-                    "Compra ID": "", "compra_id": "", "Anulado": False, "anulado": False
-                }
-                st.session_state.gastos.append(nuevo_gasto)
-                guardar_registro_supabase("gastos", nuevo_gasto)
-                avisar("Gasto registrado con éxito.", "💸")
-
-    with sub_caja3:
-        st.subheader("Movimientos de Caja y Gastos de Hoy")
-        gs = gastos_vigentes(hoy())
-        if gs:
-            tabla(pd.DataFrame(gs)[["Fecha", "Concepto", "Valor", "Medio de pago"]])
-        else:
-            st.info("No hay gastos registrados hoy.")
-
-# -------------------------------------------------------------------- REPORTES
-with tab_reportes:
-    st.header("Reportes y Estadísticas")
-    st.caption("Consulta el rendimiento financiero y analíticas de ventas por sabor.")
-    vs = ventas_vigentes()
-    if vs:
-        df_v = pd.DataFrame(vs)
-        total_gen = df_v["Total"].sum()
-        unidades_gen = df_v["Cantidad"].sum()
-        m1, m2 = st.columns(2)
-        m1.metric("Ventas acumuladas totales", dinero(total_gen), border=True)
-        m2.metric("Unidades vendidas totales", int(unidades_gen), border=True)
-
-        st.markdown("---")
-        st.subheader("📊 Ventas Detalladas por Nombre de Sabor")
-        cat_filtro = st.selectbox("Filtrar por Categoría:", ["Todas"] + list(SABORES.keys()))
-        
-        df_f = df_v.copy()
-        if cat_filtro != "Todas":
-            df_f = df_f[df_f["Categoría"] == cat_filtro]
-            
-        if not df_f.empty and "Sabor" in df_f.columns:
-            df_sabores = df_f.groupby(["Categoría", "Sabor"]).agg(
-                Cantidad_Vendida=("Cantidad", "sum"),
-                Total_Recaudado=("Total", "sum")
-            ).reset_index().sort_values(by="Cantidad_Vendida", ascending=False)
-
-            st.dataframe(df_sabores, use_container_width=True)
-            
-            mejor = df_sabores.iloc[0]
-            peor = df_sabores.iloc[-1]
-            
-            c1, c2 = st.columns(2)
-            c1.success(f"🔥 **Sabor Más Vendido:** {mejor['Sabor']} ({mejor['Cantidad_Vendida']} und)")
-            c2.warning(f"⚠️ **Sabor Con Menor Salida:** {peor['Sabor']} ({peor['Cantidad_Vendida']} und)")
-        else:
-            st.info("No hay registros para la categoría seleccionada.")
-            
-        st.subheader("Ventas por Categoría")
-        st.bar_chart(df_v.groupby("Categoría")["Total"].sum())
-    else:
-        st.info("Aún no hay suficientes ventas para generar reportes.")
-
-# -------------------------------------------------------------------- CIERRE DE CAJA
-with tab_cierre:
-    st.header("Cierre de Caja Diario")
-    fecha_cierre_sel = st.date_input("Fecha de cierre", value=hoy())
-    r_cierre = resumen_dia(fecha_cierre_sel)
-
-    st.markdown(f"### Resumen para el día {fecha_cierre_sel}")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Ventas totales", dinero(r_cierre["efectivo"] + r_cierre["transferencias"]))
-    c2.metric("Gastos totales", dinero(r_cierre["gastos_total"]))
-    c3.metric("Neto estimado", dinero(r_cierre["neto"]))
-
-    efectivo_contado = st.number_input("Dinero en efectivo contado en caja ($)", min_value=0.0, value=max(0.0, float(r_cierre["caja_efectivo"])), step=1000.0)
-    diferencia = efectivo_contado - r_cierre["caja_efectivo"]
-    if diferencia != 0:
-        st.warning(f"Diferencia en efectivo: {dinero_md(diferencia)}")
-    else:
-        st.success("¡Caja cuadrada perfectamente!")
-
-    if st.button("Guardar Cierre de Caja", type="primary"):
-        cierre_data = {
-            "Fecha cierre": str(fecha_cierre_sel), "Fecha registro": ahora(),
-            "Ventas efectivo": r_cierre["efectivo"], "Ventas transferencias": r_cierre["transferencias"],
-            "Gastos": r_cierre["gastos_total"], "Caja efectivo esperada": r_cierre["caja_efectivo"],
-            "Efectivo contado": efectivo_contado, "Diferencia": diferencia, "Desactualizado": False
-        }
-        st.session_state.cierres_caja.append(cierre_data)
-        guardar_registro_supabase("cierres_caja", cierre_data)
-        avisar("¡Cierre de caja guardado con éxito!", "🔒")
+                "Costo total": costo_total_calculado, "costo_total": costo_total_calcul
