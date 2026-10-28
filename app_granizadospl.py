@@ -960,7 +960,7 @@ with tab_cierre:
         st.success("¡Caja cuadrada perfectamente!")
 
     if st.button("Guardar Cierre de Caja", type="primary"):
-        # Diccionario estructurado con las columnas exactas que requiere Supabase (incluyendo total_gastos)
+        # Diccionario estructurado incluyendo 'saldo_final' y las demás columnas obligatorias para Supabase
         cierre_data = {
             "Fecha cierre": str(fecha_cierre_sel), 
             "Fecha registro": ahora(),
@@ -972,7 +972,8 @@ with tab_cierre:
             "Diferencia": diferencia, 
             "Desactualizado": False,
             "total_ventas": r_cierre["efectivo"] + r_cierre["transferencias"],
-            "total_gastos": r_cierre["gastos_total"]
+            "total_gastos": r_cierre["gastos_total"],
+            "saldo_final": r_cierre["neto"]  # Columna requerida por la relación en la base de datos
         }
         
         st.session_state.cierres_caja.append(cierre_data)
