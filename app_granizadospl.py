@@ -172,10 +172,6 @@ st.session_state.compras = cargar_tabla_supabase("compras")
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
-# INICIALIZACIÓN DE VARIABLE PARA REINICIO DE CAJA
-if "efectivo_contado_val" not in st.session_state:
-    st.session_state.efectivo_contado_val = 0.0
-
 
 def avisar(mensaje, icono=None):
     st.session_state["_aviso"] = (mensaje, icono)
@@ -784,7 +780,7 @@ with tab_caja:
     m4.metric("Efectivo en caja estimado", dinero(r["caja_efectivo"]), border=True)
 
     st.divider()
-    sub_caja1, sub_caja2, sub_caja3 = st.tabs(["📥 Registrar Compra", "💸 Registrar Gasto", "📋 Movimientos de Caja"])
+    sub_caja1, sub_caja2, sub_caja3 = st.tabs(["📥 Registrar Compra", "💸 Registrar Gasto", "📋 Movimientos y Anulación de Gastos"])
 
     with sub_caja1:
         st.subheader("Registrar Compra de Insumos / Sabores")
@@ -845,13 +841,17 @@ with tab_caja:
             id_gasto = "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             nuevo_gasto = {
                 "id": id_gasto,
+                "ID": id_gasto,
                 "fecha": fecha_compra,
+                "Fecha": fecha_compra,
                 "concepto": descripcion_compra,
+                "Concepto": descripcion_compra,
                 "valor": costo_total_calculado,
                 "monto": costo_total_calculado,
                 "medio_pago": medio_pago_compra,
                 "compra_id": compra_id,
-                "anulado": False
+                "anulado": False,
+                "Anulado": False
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
@@ -875,13 +875,17 @@ with tab_caja:
                 fecha_gasto = ahora()
                 nuevo_gasto = {
                     "id": id_gasto,
+                    "ID": id_gasto,
                     "Fecha": fecha_gasto,
+                    "fecha": fecha_gasto,
                     "concepto": concepto_gasto.strip(),
+                    "Concepto": concepto_gasto.strip(),
                     "valor": valor_gasto,
                     "monto": valor_gasto,
                     "medio_pago": medio_pago_gasto,
                     "compra_id": "",
-                    "anulado": False
+                    "anulado": False,
+                    "Anulado": False
                 }
                 st.session_state.gastos.append(nuevo_gasto)
                 guardar_registro_supabase("gastos", nuevo_gasto)
@@ -891,7 +895,44 @@ with tab_caja:
         st.subheader("Movimientos de Caja y Gastos de Hoy")
         gs = gastos_vigentes(hoy())
         if gs:
-            tabla(pd.DataFrame(gs)[["Fecha", "Concepto", "Valor", "Medio de pago"]])
+            df_gastos = pd.DataFrame(gs)
+            columnas_mostrar = [c for c in ["id", "ID", "Fecha", "fecha", "Concepto", "concepto", "Valor", "monto", "Medio de pago"] if c in df_gastos.columns]
+            tabla(df_gastos[columnas_mostrar])
+            
+            st.divider()
+            st.subheader("Anular o Eliminar Gasto Registrado")
+            
+            etiquetas_gastos = {
+                str(g.get("id", g.get("ID", ""))): f"{str(g.get('Fecha', g.get('fecha', '')))[5:16]} · {g.get('Concepto', g.get('concepto', ''))} · {dinero(g.get('Valor', g.get('monto', 0)))}" 
+                for g in gs
+            }
+            
+            with st.form("form_anular_gasto"):
+                gasto_a_anular = st.selectbox("Selecciona el gasto que deseas anular", list(etiquetas_gastos), format_func=etiquetas_gastos.get)
+                confirmar_anulacion = st.checkbox("Confirmo que deseo anular este gasto (se descontará de los gastos totales)")
+                btn_ejecutar_anulacion = st.form_submit_button("Anular / Eliminar Gasto", type="primary")
+                
+            if btn_ejecutar_anulacion:
+                if not confirmar_anulacion:
+                    st.error("Debes marcar la casilla de confirmación para anular el gasto.")
+                else:
+                    gasto_encontrado = False
+                    for g in st.session_state.gastos:
+                        if str(g.get("id", g.get("ID", ""))) == str(gasto_a_anular):
+                            g["anulado"] = True
+                            g["Anulado"] = True
+                            gasto_encontrado = True
+                    
+                    if gasto_encontrado:
+                        try:
+                            actualizar_registro_supabase("gastos", {"anulado": True, "Anulado": True}, "id", str(gasto_a_anular))
+                            actualizar_registro_supabase("gastos", {"anulado": True, "Anulado": True}, "ID", str(gasto_a_anular))
+                        except Exception:
+                            pass
+                        
+                        avisar("Gasto anulado correctamente. Los totales se han actualizado.", "🗑️")
+                    else:
+                        st.error("No se pudo localizar el gasto seleccionado.")
         else:
             st.info("No hay gastos registrados hoy.")
 
@@ -964,7 +1005,6 @@ with tab_cierre:
         st.success("¡Caja cuadrada perfectamente!")
 
     if st.button("Guardar Cierre de Caja", type="primary"):
-        # Diccionario estructurado con todas las columnas obligatorias exigidas por Supabase
         cierre_data = {
             "Fecha cierre": str(fecha_cierre_sel), 
             "Fecha registro": ahora(),
@@ -983,7 +1023,6 @@ with tab_cierre:
         st.session_state.cierres_caja.append(cierre_data)
         guardar_registro_supabase("cierres_caja", cierre_data)
         
-        # Limpiamos la clave para el próximo ciclo de ejecución mediante un callback limpio
         st.session_state.pop("efectivo_contado_val", None)
         
         avisar("¡Cierre de caja guardado con éxito y valores restablecidos a cero!", "🔒")
