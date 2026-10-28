@@ -823,7 +823,6 @@ with tab_caja:
             id_compra = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             fecha_compra = ahora()
             
-            # Descripción en minúsculas para coincidir exactamente con la columna 'descripcion' de Supabase
             descripcion_compra = f"Compra de {cant_compra} und de {prod_compra} a {proveedor or 'Proveedor general'}"
             
             nueva_compra = {
@@ -835,6 +834,8 @@ with tab_caja:
                 "Cantidad": int(cant_compra),
                 "costo_total": costo_total_calculado,
                 "Costo total": costo_total_calculado,
+                "monto": costo_total_calculado,       # <-- Añadido para evitar error not-null constraint en 'monto'
+                "Monto": costo_total_calculado,       # <-- Versión con mayúscula por compatibilidad
                 "proveedor": proveedor,
                 "Proveedor": proveedor,
                 "descripcion": descripcion_compra,
