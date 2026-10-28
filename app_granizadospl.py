@@ -172,7 +172,7 @@ st.session_state.compras = cargar_tabla_supabase("compras")
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
-# INICIALIZACIÓN DE VARIABLES PARA REINICIO DE CAJA
+# INICIALIZACIÓN DE VARIABLE PARA REINICIO DEL CAMPO DE CAJA
 if "efectivo_contado_val" not in st.session_state:
     st.session_state.efectivo_contado_val = 0.0
 
@@ -950,7 +950,6 @@ with tab_cierre:
     c2.metric("Gastos totales", dinero(r_cierre["gastos_total"]))
     c3.metric("Neto estimado", dinero(r_cierre["neto"]))
 
-    # Campo vinculado a st.session_state para permitir reinicio a cero
     efectivo_contado = st.number_input(
         "Dinero en efectivo contado en caja ($)", 
         min_value=0.0, 
@@ -965,16 +964,24 @@ with tab_cierre:
         st.success("¡Caja cuadrada perfectamente!")
 
     if st.button("Guardar Cierre de Caja", type="primary"):
+        # Diccionario estructurado con las columnas exactas que requiere Supabase
         cierre_data = {
-            "Fecha cierre": str(fecha_cierre_sel), "Fecha registro": ahora(),
-            "Ventas efectivo": r_cierre["efectivo"], "Ventas transferencias": r_cierre["transferencias"],
-            "Gastos": r_cierre["gastos_total"], "Caja efectivo esperada": r_cierre["caja_efectivo"],
-            "Efectivo contado": efectivo_contado, "Diferencia": diferencia, "Desactualizado": False
+            "Fecha cierre": str(fecha_cierre_sel), 
+            "Fecha registro": ahora(),
+            "Ventas efectivo": r_cierre["efectivo"], 
+            "Ventas transferencias": r_cierre["transferencias"],
+            "Gastos": r_cierre["gastos_total"], 
+            "Caja efectivo esperada": r_cierre["caja_efectivo"],
+            "Efectivo contado": efectivo_contado, 
+            "Diferencia": diferencia, 
+            "Desactualizado": False,
+            "total_ventas": r_cierre["efectivo"] + r_cierre["transferencias"]
         }
+        
         st.session_state.cierres_caja.append(cierre_data)
         guardar_registro_supabase("cierres_caja", cierre_data)
         
-        # Restablecer campos a cero para dejar la interfaz lista para el siguiente turno/cierre
+        # Restablecer el input de efectivo contado a cero para el siguiente turno
         st.session_state.efectivo_contado_val = 0.0
         
         avisar("¡Cierre de caja guardado con éxito y valores restablecidos a cero!", "🔒")
