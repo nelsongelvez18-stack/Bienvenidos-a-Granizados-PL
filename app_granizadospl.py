@@ -257,7 +257,8 @@ def registrar_anulacion(tipo, identificador, detalle):
 def ventas_vigentes(desde=None, hasta=None):
     resultado = []
     for v in st.session_state.ventas:
-        if v.get("Estado", v.get("estado", "Vigente")) != "Vigente":
+        estado_v = str(v.get("Estado", v.get("estado", "Vigente")))
+        if estado_v != "Vigente":
             continue
         f = str(v.get("Fecha", v.get("fecha", "")))[:10]
         if (desde and f < str(desde)) or (hasta and f > str(hasta)):
@@ -267,7 +268,7 @@ def ventas_vigentes(desde=None, hasta=None):
 
 
 def compras_vigentes():
-    return [c for c in st.session_state.compras if c.get("Estado", c.get("estado", "Vigente")) == "Vigente"]
+    return [c for c in st.session_state.compras if str(c.get("Estado", c.get("estado", "Vigente"))) == "Vigente"]
 
 
 def gastos_vigentes(fecha=None):
@@ -276,11 +277,12 @@ def gastos_vigentes(fecha=None):
 
 def resumen_dia(fecha):
     f = str(fecha)
+    # ventas_vigentes ya filtra por estado "Vigente", por lo que las anuladas se descuentan automáticamente
     ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
-    efectivo = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) == "Efectivo"])
-    transf = suma([v for v in ventas if v.get("Medio de pago", v.get("medio_pago", "")) != "Efectivo"])
+    efectivo = suma([v for v in ventas if str(v.get("Medio de pago", v.get("medio_pago", ""))) == "Efectivo"])
+    transf = suma([v for v in ventas if str(v.get("Medio de pago", v.get("medio_pago", ""))) != "Efectivo"])
     gastos_total = suma(gastos, "Valor") if suma(gastos, "Valor") > 0 else suma(gastos, "valor")
-    gastos_efectivo = suma([g for g in gastos if g.get("Medio de pago", g.get("medio_pago", "")) == "Efectivo"], "Valor")
+    gastos_efectivo = suma([g for g in gastos if str(g.get("Medio de pago", g.get("medio_pago", ""))) == "Efectivo"], "Valor")
     return {"ventas": ventas, "gastos": gastos, "efectivo": efectivo, "transferencias": transf,
             "gastos_total": gastos_total, "caja_efectivo": efectivo - gastos_efectivo,
             "neto": efectivo + transf - gastos_total, "unidades": suma(ventas, "Cantidad")}
@@ -294,7 +296,7 @@ def marcar_cierre_desactualizado(fecha):
 
 
 def anular_venta(venta_id):
-    venta = next((v for v in st.session_state.ventas if str(v.get("ID", v.get("id", ""))) == str(venta_id) and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"), None)
+    venta = next((v for v in st.session_state.ventas if str(v.get("ID", v.get("id", ""))) == str(venta_id) and str(v.get("Estado", v.get("estado", "Vigente"))) == "Vigente"), None)
     if not venta:
         return False, "No se encontró la venta vigente."
     consumos = venta.get("Consumos", venta.get("consumos", {}))
@@ -309,6 +311,7 @@ def anular_venta(venta_id):
         guardar_stock_supabase(producto, nuevo_stock)
         registrar_movimiento(producto, "Entrada por anulación de venta", cantidad, "Devolución de inventario", str(venta_id))
     venta["Estado"] = "Anulada"
+    venta["estado"] = "Anulada"
     venta["Fecha anulación"] = ahora()
     actualizar_registro_supabase("ventas", {"Estado": "Anulada", "estado": "Anulada", "Fecha anulación": venta["Fecha anulación"]}, "ID", str(venta_id))
     marcar_cierre_desactualizado(str(venta.get("Fecha", ""))[:10])
@@ -322,7 +325,7 @@ def ids_del_pedido(venta_id):
         return [vid]
     base = vid.rsplit("-", 1)[0]
     ids = [str(v.get("ID", v.get("id", ""))) for v in st.session_state.ventas
-           if str(v.get("ID", v.get("id", ""))).startswith(base + "-") and v.get("Estado", v.get("estado", "Vigente")) == "Vigente"]
+           if str(v.get("ID", v.get("id", ""))).startswith(base + "-") and str(v.get("Estado", v.get("estado", "Vigente"))) == "Vigente"]
     return ids or [vid]
 
 
@@ -823,7 +826,6 @@ with tab_caja:
             fecha_compra = ahora()
             descripcion_compra = f"Compra de {cant_compra} und de {prod_compra} a {proveedor or 'Proveedor general'}"
             
-            # Diccionario exactamente alineado a las 8 columnas de tu tabla 'compras' en Supabase
             nueva_compra = {
                 "id": compra_id,
                 "descripcion": descripcion_compra,
