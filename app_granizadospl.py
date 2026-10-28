@@ -172,10 +172,6 @@ st.session_state.compras = cargar_tabla_supabase("compras")
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
-# INICIALIZACIÓN DE VARIABLE PARA REINICIO DEL CAMPO DE CAJA
-if "efectivo_contado_val" not in st.session_state:
-    st.session_state.efectivo_contado_val = 0.0
-
 
 def avisar(mensaje, icono=None):
     st.session_state["_aviso"] = (mensaje, icono)
@@ -964,7 +960,7 @@ with tab_cierre:
         st.success("¡Caja cuadrada perfectamente!")
 
     if st.button("Guardar Cierre de Caja", type="primary"):
-        # Diccionario estructurado con las columnas exactas que requiere Supabase
+        # Diccionario estructurado con las columnas exactas que requiere Supabase (incluyendo total_gastos)
         cierre_data = {
             "Fecha cierre": str(fecha_cierre_sel), 
             "Fecha registro": ahora(),
@@ -975,7 +971,8 @@ with tab_cierre:
             "Efectivo contado": efectivo_contado, 
             "Diferencia": diferencia, 
             "Desactualizado": False,
-            "total_ventas": r_cierre["efectivo"] + r_cierre["transferencias"]
+            "total_ventas": r_cierre["efectivo"] + r_cierre["transferencias"],
+            "total_gastos": r_cierre["gastos_total"]
         }
         
         st.session_state.cierres_caja.append(cierre_data)
