@@ -4,23 +4,23 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import random
-
+ 
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from supabase import create_client, Client
 import bcrypt
-
+ 
 st.set_page_config(page_title="Granizados PL - Punto de Venta", page_icon="🍧", layout="wide")
-
+ 
 # ---------------------------------------------------------------- CONFIGURACIÓN
 TZ = timezone(timedelta(hours=-5))  # Colombia
 UMBRAL_BAJO = 5
 LOGO = Path("logo_pl.png")
-
+ 
 # CONTRASEÑA DIRECTA DEL SISTEMA
 CLAVE_ACCESO = "Granizadospl2026**"
-
+ 
 PRECIOS_VENTA = {"SIN ALCOHOL": 13000, "CON ALCOHOL": 15000, "CREMOSOS": 15000}
 COLORES = {"SIN ALCOHOL": "#10b981", "CON ALCOHOL": "#ec4899", "CREMOSOS": "#f59e0b"}
 METODOS_PAGO = ["Efectivo", "Transferencia Nequi / Billeteras virtuales"]
@@ -30,7 +30,7 @@ SABORES = {
     "CREMOSOS": ["Bayleys", "Coco Loco", "Piña Colada"],
 }
 EXTRAS = ["Minichicles (porción)", "Goma bandera (porción)", "Bombón (porción)", "Sal pimienta (porción)", "Bolas de chicle (porción)", "Goma gusano (porción)", "Goma splash (porción)", "Barquillo (und)"]
-
+ 
 FRASES_MOTIVADORAS = [
     "🚀 ¡Hoy es un gran día para romper récords de ventas en Granizados PL!",
     "🍧 Cada granizado que preparas dibuja una sonrisa en tus clientes.",
@@ -40,21 +40,21 @@ FRASES_MOTIVADORAS = [
     "🎯 ¡A por todas! Hoy tu esfuerzo se convertirá en grandes resultados.",
     "🔥 Calidad, rapidez y una sonrisa: la fórmula secreta del éxito en Túquerres."
 ]
-
-
+ 
+ 
 def clave_sabor(sabor):
     return "Sabor Maracupíña" if sabor == "Maracupiña" else f"Sabor {sabor}"
-
-
+ 
+ 
 INVENTARIO_BASE = {"Vaso 12 oz (und)": 0, "Pitillos (und)": 0, "Bolsa de papel (und)": 0}
 INVENTARIO_BASE.update({e: 0 for e in EXTRAS})
 for _sabores in SABORES.values():
     for _s in _sabores:
         INVENTARIO_BASE[clave_sabor(_s)] = 0
-
+ 
 PRODUCTOS_ELIMINADOS = {"Sachet 12 oz (und)", "Aguardiente (copa)", "Baileys (copa)", "Champaña (copa)", "Ron Blanco (copa)", "Tequila (copa)", "Vodka (copa)", "Whisky (copa)", "Lluvia de chocolate (porción)"}
-
-
+ 
+ 
 # ---------------------------------------------------------------------- SUPABASE & UTILS
 def init_supabase() -> Client:
     url = st.secrets.get("SUPABASE_URL", st.secrets.get("supabase", {}).get("url", ""))
@@ -63,35 +63,35 @@ def init_supabase() -> Client:
         st.error("⚠️ Falta configurar SUPABASE_URL y SUPABASE_KEY en los Secrets de Streamlit.")
         st.stop()
     return create_client(url.strip(), key.strip())
-
-
+ 
+ 
 supabase = init_supabase()
-
-
+ 
+ 
 def ahora():
     return datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-
+ 
+ 
 def hoy():
     return datetime.now(TZ).date()
-
-
+ 
+ 
 def dinero(valor):
     return f"${int(round(valor)):,.0f}".replace(",", ".")
-
-
+ 
+ 
 def dinero_html(valor):
     return dinero(valor).replace("$", "&#36;")
-
-
+ 
+ 
 def dinero_md(valor):
     return dinero(valor).replace("$", "\\$")
-
-
+ 
+ 
 def suma(items, campo="Total"):
     return sum(int(i.get(campo, i.get(campo.lower(), 0))) for i in items)
-
-
+ 
+ 
 # ------------------------------------------------------------------------ CARGA DIRECTA Y PERSISTENTE
 def cargar_inventario_supabase():
     try:
@@ -105,8 +105,8 @@ def cargar_inventario_supabase():
         return inventario
     except Exception:
         return dict(INVENTARIO_BASE)
-
-
+ 
+ 
 def guardar_stock_supabase(producto, stock):
     try:
         res = supabase.table("inventario").select("*").eq("nombre", producto).execute()
@@ -116,8 +116,8 @@ def guardar_stock_supabase(producto, stock):
             supabase.table("inventario").insert({"nombre": producto, "stock": int(stock), "precio": 0, "costo": 0}).execute()
     except Exception as e:
         st.error(f"Error sincronizando stock con Supabase: {e}")
-
-
+ 
+ 
 def cargar_tabla_supabase(nombre_tabla):
     try:
         res = supabase.table(nombre_tabla).select("*").execute()
@@ -144,22 +144,22 @@ def cargar_tabla_supabase(nombre_tabla):
         return []
     except Exception:
         return []
-
-
+ 
+ 
 def guardar_registro_supabase(nombre_tabla, data):
     try:
         supabase.table(nombre_tabla).insert(data).execute()
     except Exception as e:
         st.error(f"Error guardando en {nombre_tabla}: {e}")
-
-
+ 
+ 
 def actualizar_registro_supabase(nombre_tabla, data_update, match_col, match_val):
     try:
         supabase.table(nombre_tabla).update(data_update).eq(match_col, match_val).execute()
     except Exception as e:
         st.error(f"Error actualizando {nombre_tabla}: {e}")
-
-
+ 
+ 
 # SINCRONIZACIÓN OBLIGATORIA EN CADA CARGA DE SESIÓN
 st.session_state.inventario = cargar_inventario_supabase()
 st.session_state.ventas = cargar_tabla_supabase("ventas")
@@ -168,20 +168,20 @@ st.session_state.gastos = cargar_tabla_supabase("gastos")
 st.session_state.anulaciones = cargar_tabla_supabase("anulaciones")
 st.session_state.cierres_caja = cargar_tabla_supabase("cierres_caja")
 st.session_state.compras = cargar_tabla_supabase("compras")
-
+ 
 if "carrito" not in st.session_state:
     st.session_state.carrito = []
-
-
+ 
+ 
 def avisar(mensaje, icono=None):
     st.session_state["_aviso"] = (mensaje, icono)
     st.rerun()
-
-
+ 
+ 
 def verificar_acceso():
     if st.session_state.get("acceso_ok"):
         return
-
+ 
     CSS_LOGIN = """
     .login-container { 
         max-width: 420px; 
@@ -195,7 +195,7 @@ def verificar_acceso():
     }
     """
     st.markdown(f"<style>{CSS_LOGIN}</style>", unsafe_allow_html=True)
-
+ 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
@@ -210,15 +210,15 @@ def verificar_acceso():
                 st.error("Contraseña incorrecta.")
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
-
-
+ 
+ 
 verificar_acceso()
-
+ 
 if "_aviso" in st.session_state:
     _msg, _ico = st.session_state.pop("_aviso")
     st.toast(_msg, icon=_ico)
-
-
+ 
+ 
 # ------------------------------------------------------------------- LÓGICA DE NEGOCIO ORIGINAL
 def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
     mov = {
@@ -237,8 +237,8 @@ def registrar_movimiento(producto, tipo, cantidad, detalle="", referencia=""):
     }
     st.session_state.movimientos.append(mov)
     guardar_registro_supabase("movimientos", mov)
-
-
+ 
+ 
 def registrar_anulacion(tipo, identificador, detalle):
     anul = {
         "fecha": ahora(),
@@ -252,8 +252,8 @@ def registrar_anulacion(tipo, identificador, detalle):
     }
     st.session_state.anulaciones.append(anul)
     guardar_registro_supabase("anulaciones", anul)
-
-
+ 
+ 
 def ventas_vigentes(desde=None, hasta=None):
     resultado = []
     for v in st.session_state.ventas:
@@ -265,16 +265,16 @@ def ventas_vigentes(desde=None, hasta=None):
             continue
         resultado.append(v)
     return resultado
-
-
+ 
+ 
 def compras_vigentes():
     return [c for c in st.session_state.compras if str(c.get("Estado", c.get("estado", "Vigente"))) == "Vigente"]
-
-
+ 
+ 
 def gastos_vigentes(fecha=None):
     return [g for g in st.session_state.gastos if not g.get("Anulado", g.get("anulado", False)) and (fecha is None or str(g.get("Fecha", g.get("fecha", "")))[:10] == str(fecha))]
-
-
+ 
+ 
 def resumen_dia(fecha):
     f = str(fecha)
     ventas, gastos = ventas_vigentes(f, f), gastos_vigentes(f)
@@ -285,15 +285,15 @@ def resumen_dia(fecha):
     return {"ventas": ventas, "gastos": gastos, "efectivo": efectivo, "transferencias": transf,
             "gastos_total": gastos_total, "caja_efectivo": efectivo - gastos_efectivo,
             "neto": efectivo + transf - gastos_total, "unidades": suma(ventas, "Cantidad")}
-
-
+ 
+ 
 def marcar_cierre_desactualizado(fecha):
     for c in st.session_state.cierres_caja:
         if c.get("Fecha cierre") == fecha:
             c["Desactualizado"] = True
             actualizar_registro_supabase("cierres_caja", {"Desactualizado": True}, "Fecha cierre", fecha)
-
-
+ 
+ 
 def anular_venta(venta_id):
     venta = next((v for v in st.session_state.ventas if str(v.get("ID", v.get("id", ""))) == str(venta_id) and str(v.get("Estado", v.get("estado", "Vigente"))) == "Vigente"), None)
     if not venta:
@@ -316,8 +316,8 @@ def anular_venta(venta_id):
     marcar_cierre_desactualizado(str(venta.get("Fecha", ""))[:10])
     registrar_anulacion("Venta", str(venta_id), "Venta anulada")
     return True, "Venta anulada; el inventario consumido fue devuelto."
-
-
+ 
+ 
 def ids_del_pedido(venta_id):
     vid = str(venta_id)
     if vid.count("-") < 2:
@@ -326,8 +326,8 @@ def ids_del_pedido(venta_id):
     ids = [str(v.get("ID", v.get("id", ""))) for v in st.session_state.ventas
            if str(v.get("ID", v.get("id", ""))).startswith(base + "-") and str(v.get("Estado", v.get("estado", "Vigente"))) == "Vigente"]
     return ids or [vid]
-
-
+ 
+ 
 def consumos_venta(sabor, presentacion, incluir_bolsa):
     consumos = {
         clave_sabor(sabor): 1,
@@ -340,8 +340,8 @@ def consumos_venta(sabor, presentacion, incluir_bolsa):
     for extra in EXTRAS:
         consumos[extra] = 1
     return consumos
-
-
+ 
+ 
 # --------------------------------------------------------------------- ESTILO CSS
 CSS_GENERAL = (
     "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');"
@@ -374,12 +374,211 @@ CSS_GENERAL = (
     "div[data-testid='stMetric'] { background: #ffffff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }"
 )
 st.markdown("<style>" + CSS_GENERAL + "</style>", unsafe_allow_html=True)
-
-
+ 
+ 
+# ======================================================================
+# TEMA NAVIDEÑO ROTATIVO  (BLOQUE AÑADIDO - solo decorativo)
+# No lee ni escribe en Supabase, no usa session_state y no provoca
+# recargas: los cambios de aspecto los hace el navegador con CSS.
+# Va después de CSS_GENERAL para que sus reglas se impongan.
+# ======================================================================
+def _b64_svg(svg):
+    return base64.b64encode(svg.encode("utf-8")).decode()
+ 
+ 
+# Gorro de Papá Noel que se coloca sobre el vaso animado (vía CSS).
+GORRO_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60">'
+    '<path d="M10 48 Q14 14 50 8 Q66 6 73 22 Q69 36 72 48 Z" fill="#dc2626"/>'
+    '<path d="M10 48 Q14 14 50 8 Q30 22 26 48 Z" fill="#b91c1c" opacity="0.55"/>'
+    '<rect x="3" y="43" width="74" height="13" rx="6.5" fill="#ffffff"/>'
+    '<circle cx="73" cy="22" r="7" fill="#ffffff"/>'
+    '</svg>'
+)
+ 
+MUNECO_SVG = (
+    '<svg viewBox="0 0 100 140" width="100%" xmlns="http://www.w3.org/2000/svg">'
+    '<ellipse cx="50" cy="136" rx="34" ry="4" fill="rgba(15,23,42,0.12)"/>'
+    '<circle cx="50" cy="106" r="28" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>'
+    '<circle cx="50" cy="66" r="21" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>'
+    '<circle cx="50" cy="34" r="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>'
+    '<line x1="72" y1="64" x2="94" y2="76" stroke="#7c2d12" stroke-width="3" stroke-linecap="round"/>'
+    '<g class="nav-brazo"><line x1="28" y1="64" x2="6" y2="44" stroke="#7c2d12" stroke-width="3" stroke-linecap="round"/></g>'
+    '<rect x="35" y="8" width="30" height="13" rx="2" fill="#1e293b"/>'
+    '<rect x="29" y="19" width="42" height="4" rx="2" fill="#1e293b"/>'
+    '<rect x="35" y="15" width="30" height="4" fill="#dc2626"/>'
+    '<circle cx="44" cy="31" r="2" fill="#1e293b"/><circle cx="56" cy="31" r="2" fill="#1e293b"/>'
+    '<polygon points="50,35 66,38 50,41" fill="#f97316"/>'
+    '<rect x="33" y="46" width="34" height="8" rx="4" fill="#dc2626"/>'
+    '<rect x="56" y="50" width="8" height="20" rx="3" fill="#16a34a"/>'
+    '<circle cx="50" cy="68" r="2.5" fill="#1e293b"/><circle cx="50" cy="78" r="2.5" fill="#1e293b"/>'
+    '<circle cx="50" cy="96" r="2.5" fill="#1e293b"/><circle cx="50" cy="108" r="2.5" fill="#1e293b"/>'
+    '</svg>'
+)
+ 
+ARBOL_SVG = (
+    '<svg viewBox="0 0 100 140" width="100%" xmlns="http://www.w3.org/2000/svg">'
+    '<ellipse cx="50" cy="136" rx="34" ry="4" fill="rgba(15,23,42,0.12)"/>'
+    '<rect x="44" y="118" width="12" height="16" rx="2" fill="#7c2d12"/>'
+    '<polygon points="50,36 20,80 80,80" fill="#16a34a"/>'
+    '<polygon points="50,58 14,104 86,104" fill="#15803d"/>'
+    '<polygon points="50,80 8,124 92,124" fill="#166534"/>'
+    '<polygon class="nav-estrella" points="50,8 54,19 66,19 56,26 60,38 50,31 40,38 44,26 34,19 46,19" fill="#facc15"/>'
+    '<circle class="nav-bola" style="animation-delay:-0.2s" cx="42" cy="68" r="4" fill="#ef4444"/>'
+    '<circle class="nav-bola" style="animation-delay:-0.7s" cx="58" cy="76" r="4" fill="#fde047"/>'
+    '<circle class="nav-bola" style="animation-delay:-1.1s" cx="32" cy="96" r="4" fill="#3b82f6"/>'
+    '<circle class="nav-bola" style="animation-delay:-0.4s" cx="66" cy="98" r="4" fill="#ef4444"/>'
+    '<circle class="nav-bola" style="animation-delay:-0.9s" cx="50" cy="92" r="4" fill="#f472b6"/>'
+    '<circle class="nav-bola" style="animation-delay:-1.3s" cx="24" cy="116" r="4" fill="#fde047"/>'
+    '<circle class="nav-bola" style="animation-delay:-0.5s" cx="46" cy="114" r="4" fill="#ef4444"/>'
+    '<circle class="nav-bola" style="animation-delay:-1.0s" cx="76" cy="116" r="4" fill="#3b82f6"/>'
+    '</svg>'
+)
+ 
+CSS_NAVIDAD = """
+/* ===== Colores del tema que cambian solos: ciclo de 60 s (~15 s por aspecto) ===== */
+@property --nav1 { syntax: '<color>'; inherits: true; initial-value: #b91c1c; }
+@property --nav2 { syntax: '<color>'; inherits: true; initial-value: #166534; }
+:root { animation: navCiclo 60s linear infinite; }
+@keyframes navCiclo {
+  0%, 20%  { --nav1: #b91c1c; --nav2: #166534; }
+  25%, 45% { --nav1: #1e40af; --nav2: #0e7490; }
+  50%, 70% { --nav1: #a16207; --nav2: #7f1d1d; }
+  75%, 95% { --nav1: #14532d; --nav2: #b45309; }
+  100%     { --nav1: #b91c1c; --nav2: #166534; }
+}
+/* ===== Fondo claro y profesional con toques navideños ===== */
+html body .stApp {
+  background:
+    radial-gradient(circle at 6% 0%, color-mix(in srgb, var(--nav2) 14%, #ffffff) 0, transparent 38%),
+    radial-gradient(circle at 94% 0%, color-mix(in srgb, var(--nav1) 14%, #ffffff) 0, transparent 38%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--nav1) 8%, #ffffff) 0, transparent 46%),
+    #fbfaf8;
+  background-attachment: fixed;
+}
+[data-testid="stHeader"] { background: transparent; }
+/* ===== Banner ===== */
+.banner { background: linear-gradient(135deg, var(--nav1) 0%, var(--nav2) 100%); border: 2px solid rgba(255,255,255,0.75); color: #ffffff;
+  box-shadow: 0 12px 32px -6px color-mix(in srgb, var(--nav1) 45%, transparent); }
+.banner-titulo { color: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+.banner-titulo::before { content: "🎄 "; }
+.banner-titulo::after { content: " ⭐"; }
+.banner-sub { color: #fef9c3; }
+.banner-ventas { border-color: #fde047; }
+.banner-ventas span { color: #475569; }
+.banner-ventas b { color: var(--nav1); }
+/* Nieve acumulada en el borde superior del banner */
+.banner::after { content: ""; position: absolute; left: 30px; right: 30px; top: -1px; height: 12px; pointer-events: none;
+  background: radial-gradient(circle at 9px 0, #ffffff 8px, transparent 9px) 0 0 / 18px 12px repeat-x;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.15)); }
+/* Papá Noel que se asoma por la esquina del banner */
+.banner::before { content: "🎅"; position: absolute; right: 44px; bottom: -26px; font-size: 46px; line-height: 1; z-index: 6;
+  pointer-events: none; transform-origin: 50% 100%; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.25)); animation: navSanta 3.2s ease-in-out infinite; }
+@keyframes navSanta { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-4px); } }
+/* ===== Vaso animado con burbujas: versión navideña (logo y animaciones intactos) ===== */
+#cupGrad stop:nth-child(1) { stop-color: #dc2626; }
+#cupGrad stop:nth-child(2) { stop-color: #fef2f2; }
+#cupGrad stop:nth-child(3) { stop-color: #16a34a; }
+#strawGrad stop:nth-child(1) { stop-color: #fbbf24; }
+#strawGrad stop:nth-child(2) { stop-color: #fde68a; }
+.avatar-bubble { background: rgba(255,255,255,0.85); box-shadow: 0 0 6px rgba(255,255,255,0.9); }
+.avatar-container::after { content: ""; position: absolute; left: 10px; top: -12px; width: 84px; height: 63px; z-index: 3; pointer-events: none;
+  background: url(data:image/svg+xml;base64,__GORRO__) center / contain no-repeat; transform-origin: 70% 100%; animation: navGorro 3.5s ease-in-out infinite; }
+.avatar-container::before { content: "✨"; position: absolute; left: -6px; top: 8px; font-size: 16px; z-index: 3; animation: navBrillo 1.8s ease-in-out infinite alternate; }
+@keyframes navGorro { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes navBrillo { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 1; transform: scale(1.15); } }
+/* ===== Detalles que siguen el tema ===== */
+.cobro { border-color: var(--nav1); }
+.cobro p { color: var(--nav1); }
+button[data-baseweb="tab"][aria-selected="true"] { color: var(--nav1); }
+div[data-baseweb="tab-highlight"] { background-color: var(--nav1); }
+button[data-testid="stBaseButton-primary"], button[kind="primary"] { background-color: var(--nav1); border-color: var(--nav1); color: #ffffff; }
+button[data-testid="stBaseButton-primary"]:hover, button[kind="primary"]:hover { filter: brightness(1.1); }
+/* ===== Contenedor decorativo: no ocupa espacio ni bloquea clics ===== */
+div[data-testid="stElementContainer"]:has(.nav-decor), div.element-container:has(.nav-decor) { position: absolute; height: 0; margin: 0; }
+.nav-decor, .nav-decor * { pointer-events: none; }
+/* ===== Nieve ===== */
+.nav-nieve { position: fixed; inset: 0; z-index: 999; overflow: hidden; }
+.nav-nieve i { position: absolute; top: -10%; left: var(--x); font-style: normal; font-size: var(--s); color: #ffffff; opacity: 0.9;
+  text-shadow: 0 0 3px var(--nav1), 0 0 6px rgba(0,0,0,0.15); animation: navCae var(--d) linear var(--r) infinite; }
+@keyframes navCae { 0% { transform: translate(0, -10vh) rotate(0deg); } 100% { transform: translate(var(--w), 110vh) rotate(360deg); } }
+/* ===== Luces y adornos colgantes ===== */
+.nav-luces { position: fixed; top: 0; left: 0; right: 0; height: 22px; display: flex; justify-content: space-around; z-index: 1000000; }
+.nav-luces::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: #166534; opacity: 0.55; }
+.nav-luces i { position: relative; display: block; width: 9px; height: 13px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: 0 0 10px 3px currentColor; animation: navLuz 1.6s ease-in-out infinite alternate; }
+@keyframes navLuz { from { opacity: 0.35; transform: scale(0.9); } to { opacity: 1; transform: scale(1.1); } }
+.nav-adorno { position: fixed; top: 16px; left: var(--x); font-size: 26px; line-height: 1; z-index: 1000000; transform-origin: 50% 0; animation: navBalanceo 3s ease-in-out infinite; }
+.nav-adorno::before { content: ""; position: absolute; left: 50%; top: -10px; width: 1px; height: 12px; background: #64748b; }
+@keyframes navBalanceo { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+/* ===== Trineo de Papá Noel cruzando la pantalla ===== */
+.nav-trineo { position: fixed; top: 36px; left: 0; z-index: 1000000; font-size: 30px; white-space: nowrap; animation: navVuelo 46s linear infinite; }
+.nav-trineo span { display: inline-block; animation: navRebote 1.2s ease-in-out infinite alternate; }
+.nav-trineo .tr { position: relative; }
+.nav-trineo .tr b { position: absolute; left: 6px; top: -14px; font-size: 0.75em; }
+@keyframes navVuelo { 0% { transform: translateX(105vw); } 35% { transform: translateX(-280px); } 100% { transform: translateX(-280px); } }
+@keyframes navRebote { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+/* ===== Muñeco de nieve y árbol (solo en pantallas anchas, en los márgenes) ===== */
+.nav-muneco, .nav-arbol { position: fixed; bottom: 10px; width: 80px; z-index: 998; display: none; }
+.nav-muneco { left: 10px; }
+.nav-arbol { right: 22px; }
+.nav-muneco svg { transform-origin: 50% 100%; animation: navSuave 4s ease-in-out infinite; }
+.nav-brazo { transform-origin: 28px 64px; animation: navSaludoBrazo 1.2s ease-in-out infinite alternate; }
+.nav-bola { animation: navBrillo 1.6s ease-in-out infinite alternate; }
+.nav-estrella { transform-origin: 50px 22px; animation: navEstrella 2s ease-in-out infinite; }
+.nav-regalo { position: absolute; left: -26px; bottom: 2px; font-size: 26px; animation: navSalto 1.6s ease-in-out infinite; }
+@keyframes navSuave { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes navSaludoBrazo { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@keyframes navEstrella { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+@keyframes navSalto { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } }
+@media (min-width: 1480px) { .nav-muneco, .nav-arbol { display: block; } }
+@media (max-width: 700px) { .nav-adorno { display: none; } }
+/* ===== Accesibilidad: sin movimiento si el usuario lo prefiere ===== */
+@media (prefers-reduced-motion: reduce) {
+  .nav-nieve i, .nav-luces i, .nav-adorno, .nav-trineo, .nav-trineo span, .nav-muneco svg, .nav-brazo, .nav-bola,
+  .nav-estrella, .nav-regalo, .banner::before, .avatar-container::after, .avatar-container::before { animation: none; }
+}
+"""
+ 
+ 
+def aplicar_tema_navidad():
+    rnd = random.Random(2026)  # semilla fija: los copos no cambian de posición entre recargas
+    copos = "".join(
+        f'<i style="--x:{rnd.randint(0, 98)}%;--s:{rnd.randint(10, 22)}px;--d:{rnd.randint(9, 18)}s;'
+        f'--r:-{rnd.randint(0, 18)}s;--w:{rnd.randint(-60, 60)}px">{rnd.choice(["❄", "❅", "❆"])}</i>'
+        for _ in range(26)
+    )
+    colores = ["#ef4444", "#22c55e", "#fbbf24", "#3b82f6", "#f472b6"]
+    luces = "".join(
+        f'<i style="background:{colores[i % 5]};color:{colores[i % 5]};animation-delay:-{(i % 7) * 0.25:.2f}s"></i>'
+        for i in range(32)
+    )
+    adornos = (
+        '<div class="nav-adorno" style="--x:12%">🔔</div>'
+        '<div class="nav-adorno" style="--x:47%;animation-delay:-1s">⭐</div>'
+        '<div class="nav-adorno" style="--x:83%;animation-delay:-2s">🧦</div>'
+    )
+    trineo = ('<div class="nav-trineo"><span>🦌</span><span style="animation-delay:-0.4s">🦌</span>'
+              '<span class="tr" style="animation-delay:-0.8s">🛷<b>🎅</b></span><span>✨</span></div>')
+    muneco = f'<div class="nav-muneco">{MUNECO_SVG}</div>'
+    arbol = f'<div class="nav-arbol">{ARBOL_SVG}<span class="nav-regalo">🎁</span></div>'
+    css = CSS_NAVIDAD.replace("__GORRO__", _b64_svg(GORRO_SVG))
+    st.markdown(
+        "<style>" + css + "</style>"
+        f'<div class="nav-decor"><div class="nav-nieve">{copos}</div><div class="nav-luces">{luces}</div>'
+        f'{adornos}{trineo}{muneco}{arbol}</div>',
+        unsafe_allow_html=True,
+    )
+ 
+ 
+aplicar_tema_navidad()
+# ==================== FIN DEL BLOQUE NAVIDEÑO ====================
+ 
+ 
 def tile(etiqueta, valor, color):
     return f'<div class="tile" style="background:{color}"><span>{etiqueta}</span><b>{valor}</b></div>'
-
-
+ 
+ 
 def avatar_svg_html():
     return (
         '<div class="avatar-container">'
@@ -412,18 +611,18 @@ def avatar_svg_html():
         '</svg>'
         '</div>'
     )
-
-
+ 
+ 
 def header_media_html():
     if LOGO.exists():
         b64 = base64.b64encode(LOGO.read_bytes()).decode()
         logo_img = f'<img src="data:image/png;base64,{b64}" alt="Logo Granizados PL">'
     else:
         logo_img = '<div class="granizado-avatar-vaso"><span style="font-size:40px;">🍧</span></div>'
-
+ 
     return f'<div class="header-media-wrapper"><div class="banner-logo-container">{logo_img}</div>{avatar_svg_html()}</div>'
-
-
+ 
+ 
 def encabezado():
     total_hoy = suma(ventas_vigentes(hoy(), hoy()))
     st.markdown(
@@ -432,7 +631,7 @@ def encabezado():
         '<div class="banner-sub">Sistema de Punto de Venta Inteligente Cloud · Túquerres, Nariño</div></div>'
         f'<div class="banner-ventas"><span>Ventas de hoy</span><b>{dinero_html(total_hoy)}</b></div></div>',
         unsafe_allow_html=True)
-
+ 
     frases_json = json.dumps(FRASES_MOTIVADORAS)
     components.html(f"""
         <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%); border: 1px solid #fde047; border-radius: 16px; padding: 14px 20px; color: #713f12; font-weight: 600; font-size: 15px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.1); position: relative; overflow: hidden;">
@@ -444,7 +643,7 @@ def encabezado():
             let index = Math.floor(Math.random() * frases.length);
             const el = document.getElementById("frase-texto");
             const barra = document.getElementById("barra-progreso");
-
+ 
             function actualizarFrase() {{
                 el.style.opacity = 0;
                 setTimeout(() => {{
@@ -452,7 +651,7 @@ def encabezado():
                     el.style.opacity = 1;
                     index = (index + 1) % frases.length;
                 }}, 500);
-
+ 
                 barra.style.transition = 'none';
                 barra.style.width = '0%';
                 setTimeout(() => {{
@@ -460,13 +659,13 @@ def encabezado():
                     barra.style.width = '100%';
                 }}, 50);
             }}
-
+ 
             actualizarFrase();
             setInterval(actualizarFrase, 60000);
         </script>
     """, height=75)
-
-
+ 
+ 
 def alerta_inventario():
     bajo = [(p, int(q)) for p, q in st.session_state.inventario.items() if int(q) <= UMBRAL_BAJO and p not in EXTRAS]
     if not bajo:
@@ -485,38 +684,38 @@ def alerta_inventario():
                 for p, q in items:
                     estado = "agotado" if q == 0 else f"{q} und"
                     st.markdown(f":{'red' if q == 0 else 'orange'}[●] {p}: **{estado}**")
-
-
+ 
+ 
 def elegir(etiqueta, opciones, defecto, clave, **kw):
     valor = st.segmented_control(etiqueta, opciones, default=defecto, key=clave, **kw)
     if valor is None:
         return defecto
     return valor
-
-
+ 
+ 
 CFG_DINERO = {c: st.column_config.NumberColumn(c, format="$ %d") for c in
               ["Total", "Precio unitario", "Costo unitario", "Valor", "Efectivo", "Transferencias", "Gastos", "Saldo neto estimado", "Caja en efectivo", "Efectivo contado", "Diferencia"]}
-
-
+ 
+ 
 def tabla(df):
     st.dataframe(df, hide_index=True, use_container_width=True, column_config=CFG_DINERO)
-
-
+ 
+ 
 def sin_consumos(registros):
     return pd.DataFrame([{k: v for k, v in r.items() if k != "Consumos"} for r in registros])
-
-
+ 
+ 
 # ------------------------------------------------------------------------ APP
 encabezado()
 alerta_inventario()
-
+ 
 tab_ventas, tab_inventario, tab_historial, tab_caja, tab_reportes, tab_cierre = st.tabs(
     ["🛒 Ventas", "📦 Inventario", "🧾 Historial", "💵 Caja y compras", "📊 Reportes", "🔒 Cerrar caja"])
-
+ 
 # ---------------------------------------------------------------------- VENTAS
 with tab_ventas:
     col_form, col_cobro = st.columns([2, 1], gap="large")
-
+ 
     with col_form:
         with st.container(border=True):
             st.subheader("1. Agrega los granizados del cliente")
@@ -539,7 +738,7 @@ with tab_ventas:
                     "Cantidad": int(cantidad), "Precio unitario": precio_unitario})
                 st.session_state.pop("cantidad_venta", None)
                 st.rerun()
-
+ 
         with st.container(border=True):
             st.subheader("2. Datos del pedido")
             d1, d2 = st.columns(2)
@@ -551,11 +750,11 @@ with tab_ventas:
             d3, d4 = st.columns(2)
             cliente = d3.text_input("Cliente (opcional)", key="cliente_venta")
             observacion = d4.text_input("Observación (opcional)", key="obs_venta")
-
+ 
     carrito = st.session_state.carrito
     total = sum(l["Cantidad"] * l["Precio unitario"] for l in carrito)
     unidades_pedido = sum(l["Cantidad"] for l in carrito)
-
+ 
     with col_cobro:
         with st.container(border=True):
             st.markdown("**Pedido actual**")
@@ -568,7 +767,7 @@ with tab_ventas:
                 if cb.button("✕", key=f"quitar_{i}", help="Quitar esta línea"):
                     st.session_state.carrito.pop(i)
                     st.rerun()
-
+ 
         pago_corto = "Efectivo" if metodo_pago == "Efectivo" else "Nequi"
         st.markdown(
             f'<div class="cobro"><span>Total a cobrar</span><b>{dinero_html(total)}</b>'
@@ -578,7 +777,7 @@ with tab_ventas:
         if carrito and st.button("Vaciar pedido", use_container_width=True, key="btn_vaciar"):
             st.session_state.carrito = []
             st.rerun()
-
+ 
         r_hoy = resumen_dia(hoy())
         st.markdown("**Resumen de hoy**")
         st.markdown(
@@ -586,7 +785,7 @@ with tab_ventas:
             + tile("Efectivo", dinero_html(r_hoy["efectivo"]), "#f59e0b")
             + tile("Transferencias", dinero_html(r_hoy["transferencias"]), "#ec4899"),
             unsafe_allow_html=True)
-
+ 
     if guardar_venta and carrito:
         lineas = []
         for n, l in enumerate(carrito):
@@ -594,12 +793,12 @@ with tab_ventas:
             if n == 0 and bolsas > 0:
                 cons["Bolsa de papel (und)"] = int(bolsas)
             lineas.append((l, cons))
-
+ 
         consumo_total = {}
         for _, cons in lineas:
             for p, q in cons.items():
                 consumo_total[p] = consumo_total.get(p, 0) + q
-
+ 
         faltantes = [(p, q, int(st.session_state.inventario.get(p, 0))) for p, q in consumo_total.items() if p.startswith("Sabor ") and int(st.session_state.inventario.get(p, 0)) < q]
         if faltantes:
             st.error("Inventario insuficiente del sabor: " + "; ".join(f"{p}: requiere {q}, disponible {d}" for p, q, d in faltantes))
@@ -627,7 +826,7 @@ with tab_ventas:
                     total_val = l["Cantidad"] * l["Precio unitario"]
                     pago_val = metodo_pago
                     consumos_val = json.dumps(cons)
-
+ 
                     nueva_venta = {
                         "id": id_linea,
                         "ID": id_linea,
@@ -665,22 +864,22 @@ with tab_ventas:
                 st.session_state.pop(k, None)
             st.balloons()
             avisar(f"¡Venta registrada con éxito por {dinero(total)}!", "🎉")
-
+ 
 # ------------------------------------------------------------------- INVENTARIO
 with tab_inventario:
     st.header("Gestión de Inventario")
     st.caption("Consulta el stock categorizado y corrige existencias en caso de errores en compras.")
-
+ 
     sub_inv1, sub_inv2, sub_inv3, sub_inv4, sub_inv5, sub_inv_corr = st.tabs([
         "🍧 Sin alcohol", "🍹 Con alcohol", "🍨 Cremosos", "🍬 Adicionales y toppings", "🥤 Insumos y otros", "✏️ Corrección de Stock"
     ])
-
+ 
     keys_sin_alcohol = {clave_sabor(s) for s in SABORES["SIN ALCOHOL"]}
     keys_con_alcohol = {clave_sabor(s) for s in SABORES["CON ALCOHOL"]}
     keys_cremosos = {clave_sabor(s) for s in SABORES["CREMOSOS"]}
     keys_extras = set(EXTRAS)
     keys_insumos = {"Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"}
-
+ 
     def render_sub_inventario(filtro_set, titulo_cat):
         st.subheader(titulo_cat)
         items = [(p, q) for p, q in st.session_state.inventario.items() if p in filtro_set]
@@ -691,7 +890,7 @@ with tab_inventario:
         ])
         tabla(df)
         st.download_button(f"Descargar {titulo_cat.lower()} CSV", df.to_csv(index=False).encode("utf-8-sig"), f"inventario_{titulo_cat.lower().replace(' ', '_')}.csv", "text/csv")
-
+ 
     with sub_inv1:
         render_sub_inventario(keys_sin_alcohol, "Granizados Sin Alcohol")
     with sub_inv2:
@@ -702,13 +901,13 @@ with tab_inventario:
         render_sub_inventario(keys_extras, "Adicionales y Toppings")
     with sub_inv5:
         render_sub_inventario(keys_insumos, "Insumos y Otros Artículos")
-
+ 
     with sub_inv_corr:
         st.subheader("Corrección y Ajuste Directo de Inventario por Categorías")
         st.caption("Selecciona la categoría y luego el producto individual para corregir existencias.")
-
+ 
         cat_corr = st.selectbox("1. Elige la categoría del producto", ["Sin alcohol", "Con alcohol", "Cremosos", "Adicionales y toppings", "Insumos y otros"], key="cat_corr_sel")
-
+ 
         if cat_corr == "Sin alcohol":
             lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_sin_alcohol])
         elif cat_corr == "Con alcohol":
@@ -719,17 +918,17 @@ with tab_inventario:
             lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_extras])
         else:
             lista_prods_corr = sorted([p for p in st.session_state.inventario.keys() if p in keys_insumos])
-
+ 
         with st.form("form_correccion_stock"):
             prod_corr = st.selectbox("2. Selecciona el producto individual", lista_prods_corr)
             stock_actual = int(st.session_state.inventario.get(prod_corr, 0))
             st.info(f"Existencias actuales de **{prod_corr}**: **{stock_actual} unidades**")
-
+ 
             nueva_cantidad = st.number_input("Nueva cantidad exacta", min_value=0, max_value=100000, value=stock_actual, step=1)
             detalle_corr = st.text_input("Motivo de la corrección (obligatorio)", placeholder="Ej. Corrección por error de cantidad en inventario")
-
+ 
             btn_guardar_corr = st.form_submit_button("Actualizar y guardar cantidad", type="primary")
-
+ 
         if btn_guardar_corr:
             if not detalle_corr.strip():
                 st.error("Debes escribir el motivo de la corrección para auditoría.")
@@ -740,7 +939,7 @@ with tab_inventario:
                 tipo_mov = "Corrección manual a 0" if nueva_cantidad == 0 else ("Ajuste manual (aumento)" if dif > 0 else "Ajuste manual (reducción)")
                 registrar_movimiento(prod_corr, tipo_mov, abs(dif), detalle_corr)
                 avisar(f"Inventario de {prod_corr} actualizado correctamente a {nueva_cantidad}.", "✏️")
-
+ 
 # -------------------------------------------------------------------- HISTORIAL
 with tab_historial:
     st.header("Historial de ventas")
@@ -768,7 +967,7 @@ with tab_historial:
     if st.session_state.anulaciones:
         with st.expander("Registro de anulaciones (auditoría)"):
             tabla(pd.DataFrame(st.session_state.anulaciones[::-1]))
-
+ 
 # ------------------------------------------------------------------------- CAJA Y COMPRAS
 with tab_caja:
     st.header("Caja, Gastos y Compras")
@@ -778,14 +977,14 @@ with tab_caja:
     m2.metric("Transferencias", dinero(r["transferencias"]), border=True)
     m3.metric("Gastos de hoy", dinero(r["gastos_total"]), border=True)
     m4.metric("Efectivo en caja estimado", dinero(r["caja_efectivo"]), border=True)
-
+ 
     st.divider()
     sub_caja1, sub_caja2, sub_caja3 = st.tabs(["📥 Registrar Compra", "💸 Registrar Gasto", "📋 Movimientos y Anulación de Gastos"])
-
+ 
     with sub_caja1:
         st.subheader("Registrar Compra de Insumos / Sabores")
         comp_cat = st.selectbox("Elige la categoría de compra", ["Sin alcohol", "Con alcohol", "Cremosos", "Adicionales y toppings", "Insumos y otros"])
-
+ 
         if comp_cat == "Sin alcohol":
             prod_lista = [clave_sabor(s) for s in SABORES["SIN ALCOHOL"]]
             costo_sugerido = 3100.0
@@ -801,27 +1000,27 @@ with tab_caja:
         else:
             prod_lista = ["Vaso 12 oz (und)", "Pitillos (und)", "Bolsa de papel (und)"]
             costo_sugerido = 200.0
-
+ 
         with st.form(f"form_registrar_compra_{comp_cat}"):
             prod_compra = st.selectbox("Producto a comprar", sorted(prod_lista))
             cant_compra = st.number_input("Cantidad comprada", min_value=1, value=10, step=1)
             costo_unitario_compra = st.number_input("Costo unitario ($)", min_value=0.0, value=costo_sugerido, step=100.0)
-
+ 
             costo_total_calculado = cant_compra * costo_unitario_compra
             st.info(f"Costo total calculado automáticamente: **{dinero_md(costo_total_calculado)}**")
-
+ 
             proveedor = st.text_input("Proveedor o fuente")
             medio_pago_compra = st.selectbox("Medio de pago compra", METODOS_PAGO)
-
+ 
             btn_compra = st.form_submit_button("Registrar compra e ingresar al inventario", type="primary")
-
+ 
         if btn_compra:
             compra_id = "C-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             nuevo_stock = int(st.session_state.inventario.get(prod_compra, 0)) + int(cant_compra)
             st.session_state.inventario[prod_compra] = nuevo_stock
             guardar_stock_supabase(prod_compra, nuevo_stock)
             registrar_movimiento(prod_compra, "Entrada por compra", cant_compra, f"Compra a {proveedor or 'Proveedor general'}", compra_id)
-
+ 
             fecha_compra = ahora()
             descripcion_compra = f"Compra de {cant_compra} und de {prod_compra} a {proveedor or 'Proveedor general'}"
             
@@ -837,7 +1036,7 @@ with tab_caja:
             }
             st.session_state.compras.append(nueva_compra)
             guardar_registro_supabase("compras", nueva_compra)
-
+ 
             id_gasto = "G-" + datetime.now(TZ).strftime("%Y%m%d%H%M%S%f")
             nuevo_gasto = {
                 "id": id_gasto,
@@ -855,18 +1054,18 @@ with tab_caja:
             }
             st.session_state.gastos.append(nuevo_gasto)
             guardar_registro_supabase("gastos", nuevo_gasto)
-
+ 
             avisar(f"Compra registrada por {dinero(costo_total_calculado)} y {cant_compra} unidades de {prod_compra} sumadas.", "📦")
-
+ 
     with sub_caja2:
         st.subheader("Registrar Gasto Operativo")
         with st.form("form_registrar_gasto"):
             concepto_gasto = st.text_input("Concepto o descripción del gasto")
             valor_gasto = st.number_input("Valor del gasto ($)", min_value=0.0, value=5000.0, step=500.0)
             medio_pago_gasto = st.selectbox("Medio de pago gasto", METODOS_PAGO, key="pago_gasto_sel")
-
+ 
             btn_gasto = st.form_submit_button("Registrar gasto", type="primary")
-
+ 
         if btn_gasto:
             if not concepto_gasto.strip():
                 st.error("Debes escribir el concepto del gasto.")
@@ -890,7 +1089,7 @@ with tab_caja:
                 st.session_state.gastos.append(nuevo_gasto)
                 guardar_registro_supabase("gastos", nuevo_gasto)
                 avisar("Gasto registrado con éxito.", "💸")
-
+ 
     with sub_caja3:
         st.subheader("Movimientos de Caja y Gastos de Hoy")
         gs = gastos_vigentes(hoy())
@@ -935,7 +1134,7 @@ with tab_caja:
                         st.error("No se pudo localizar el gasto seleccionado.")
         else:
             st.info("No hay gastos registrados hoy.")
-
+ 
 # -------------------------------------------------------------------- REPORTES
 with tab_reportes:
     st.header("Reportes y Estadísticas")
@@ -948,7 +1147,7 @@ with tab_reportes:
         m1, m2 = st.columns(2)
         m1.metric("Ventas acumuladas totales", dinero(total_gen), border=True)
         m2.metric("Unidades vendidas totales", int(unidades_gen), border=True)
-
+ 
         st.markdown("---")
         st.subheader("📊 Ventas Detalladas por Nombre de Sabor")
         cat_filtro = st.selectbox("Filtrar por Categoría:", ["Todas"] + list(SABORES.keys()))
@@ -962,7 +1161,7 @@ with tab_reportes:
                 Cantidad_Vendida=("Cantidad", "sum"),
                 Total_Recaudado=("Total", "sum")
             ).reset_index().sort_values(by="Cantidad_Vendida", ascending=False)
-
+ 
             st.dataframe(df_sabores, use_container_width=True)
             
             mejor = df_sabores.iloc[0]
@@ -978,19 +1177,19 @@ with tab_reportes:
         st.bar_chart(df_v.groupby("Categoría")["Total"].sum())
     else:
         st.info("Aún no hay suficientes ventas para generar reportes.")
-
+ 
 # -------------------------------------------------------------------- CIERRE DE CAJA
 with tab_cierre:
     st.header("Cierre de Caja Diario")
     fecha_cierre_sel = st.date_input("Fecha de cierre", value=hoy())
     r_cierre = resumen_dia(fecha_cierre_sel)
-
+ 
     st.markdown(f"### Resumen para el día {fecha_cierre_sel}")
     c1, c2, c3 = st.columns(3)
     c1.metric("Ventas totales", dinero(r_cierre["efectivo"] + r_cierre["transferencias"]))
     c2.metric("Gastos totales", dinero(r_cierre["gastos_total"]))
     c3.metric("Neto estimado", dinero(r_cierre["neto"]))
-
+ 
     efectivo_contado = st.number_input(
         "Dinero en efectivo contado en caja ($)", 
         min_value=0.0, 
@@ -1003,7 +1202,7 @@ with tab_cierre:
         st.warning(f"Diferencia en efectivo: {dinero_md(diferencia)}")
     else:
         st.success("¡Caja cuadrada perfectamente!")
-
+ 
     if st.button("Guardar Cierre de Caja", type="primary"):
         cierre_data = {
             "Fecha cierre": str(fecha_cierre_sel), 
