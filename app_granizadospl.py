@@ -396,6 +396,21 @@ GORRO_SVG = (
     '</svg>'
 )
  
+# Mosaico de copos suaves para el papel tapiz animado del fondo.
+TILE_COPOS_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">'
+    '<g stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" fill="none">'
+    '<g transform="translate(30 34)"><path d="M0-9V9M-8-4.5L8 4.5M-8 4.5L8-4.5"/></g>'
+    '<g transform="translate(98 86)"><path d="M0-6V6M-5.2-3L5.2 3M-5.2 3L5.2-3"/></g>'
+    '<g transform="translate(112 18)"><path d="M0-4V4M-3.5-2L3.5 2M-3.5 2L3.5-2"/></g>'
+    '</g>'
+    '<circle cx="76" cy="20" r="1.8" fill="#94a3b8"/>'
+    '<circle cx="14" cy="104" r="1.5" fill="#94a3b8"/>'
+    '<circle cx="60" cy="122" r="1.6" fill="#94a3b8"/>'
+    '<circle cx="124" cy="60" r="1.4" fill="#94a3b8"/>'
+    '</svg>'
+)
+ 
 MUNECO_SVG = (
     '<svg viewBox="0 0 100 140" width="100%" xmlns="http://www.w3.org/2000/svg">'
     '<ellipse cx="50" cy="136" rx="34" ry="4" fill="rgba(15,23,42,0.12)"/>'
@@ -457,9 +472,12 @@ html body .stApp {
   background-attachment: fixed;
 }
 [data-testid="stHeader"] { background: transparent; }
-/* ===== Banner ===== */
-.banner { background: linear-gradient(135deg, var(--nav1) 0%, var(--nav2) 100%); border: 2px solid rgba(255,255,255,0.75); color: #ffffff;
+/* ===== Banner (con brillo que lo recorre) ===== */
+.banner { background: linear-gradient(110deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 65%) 0% 0 / 250% 100% no-repeat,
+    linear-gradient(135deg, var(--nav1) 0%, var(--nav2) 100%);
+  border: 2px solid rgba(255,255,255,0.75); color: #ffffff; animation: navBrilloBanner 7s linear infinite;
   box-shadow: 0 12px 32px -6px color-mix(in srgb, var(--nav1) 45%, transparent); }
+@keyframes navBrilloBanner { from { background-position: 0% 0, 0 0; } to { background-position: 100% 0, 0 0; } }
 .banner-titulo { color: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.35); }
 .banner-titulo::before { content: "🎄 "; }
 .banner-titulo::after { content: " ⭐"; }
@@ -497,10 +515,35 @@ button[data-testid="stBaseButton-primary"]:hover, button[kind="primary"]:hover {
 /* ===== Contenedor decorativo: no ocupa espacio ni bloquea clics ===== */
 div[data-testid="stElementContainer"]:has(.nav-decor), div.element-container:has(.nav-decor) { position: absolute; height: 0; margin: 0; }
 .nav-decor, .nav-decor * { pointer-events: none; }
-/* ===== Nieve ===== */
+/* ===== FONDO ANIMADO 1: manchas de luz suaves (bokeh) que derivan lentamente ===== */
+.nav-blob { position: fixed; width: 42vmax; height: 42vmax; border-radius: 50%; filter: blur(70px); opacity: 0.15; z-index: 0; will-change: transform; }
+.nav-blob.b1 { left: -12vmax; top: -10vmax; background: var(--nav2); animation: navDeriva1 38s ease-in-out infinite alternate; }
+.nav-blob.b2 { right: -14vmax; top: 8vmax; background: var(--nav1); animation: navDeriva2 46s ease-in-out infinite alternate; }
+.nav-blob.b3 { left: 12vmax; bottom: -22vmax; background: var(--nav1); animation: navDeriva2 52s ease-in-out infinite alternate-reverse; }
+.nav-blob.b4 { right: 6vmax; bottom: -20vmax; background: var(--nav2); animation: navDeriva1 44s ease-in-out infinite alternate-reverse; }
+@keyframes navDeriva1 { from { transform: translate(0, 0) scale(1); } to { transform: translate(9vmax, 7vmax) scale(1.15); } }
+@keyframes navDeriva2 { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-8vmax, 9vmax) scale(0.95); } }
+/* ===== FONDO ANIMADO 2: papel tapiz de copos que desciende (movimiento por GPU) ===== */
+.nav-patron { position: fixed; left: 0; width: 100%; z-index: 0; will-change: transform; }
+.nav-patron.p1 { top: -420px; height: calc(100% + 420px); opacity: 0.28; background: url(data:image/svg+xml;base64,__TILE__) 0 0 / 140px 140px; animation: navPatron1 36s linear infinite; }
+.nav-patron.p2 { top: -660px; height: calc(100% + 660px); opacity: 0.2; background: url(data:image/svg+xml;base64,__TILE__) 40px 60px / 220px 220px; animation: navPatron2 62s linear infinite; }
+@keyframes navPatron1 { to { transform: translateY(420px); } }
+@keyframes navPatron2 { to { transform: translateY(660px); } }
+/* ===== FONDO ANIMADO 3: destellos dorados que titilan ===== */
+.nav-chispa { position: fixed; left: var(--x); top: var(--y); font-size: var(--s); line-height: 1; color: #f59e0b; opacity: 0; z-index: 2;
+  text-shadow: 0 0 6px rgba(245,158,11,0.6); animation: navChispa var(--d) ease-in-out var(--r) infinite; }
+@keyframes navChispa { 0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); } 50% { opacity: 0.85; transform: scale(1.1) rotate(45deg); } }
+/* ===== FONDO ANIMADO 4: estrellas fugaces ===== */
+.nav-fugaz { position: fixed; width: 110px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #fbbf24, rgba(251,191,36,0)); opacity: 0; z-index: 2;
+  box-shadow: 0 0 8px 1px rgba(251,191,36,0.7); }
+.nav-fugaz.f1 { top: 14%; left: 78%; animation: navFugaz 17s ease-in infinite; }
+.nav-fugaz.f2 { top: 30%; left: 40%; animation: navFugaz 23s ease-in 7s infinite; }
+@keyframes navFugaz { 0%, 92% { opacity: 0; transform: translate(0, 0) rotate(-35deg); } 93% { opacity: 1; } 100% { opacity: 0; transform: translate(-340px, 240px) rotate(-35deg); } }
+/* ===== Nieve en dos capas: lejana (pequeña, lenta) y cercana (grande, rápida) ===== */
 .nav-nieve { position: fixed; inset: 0; z-index: 999; overflow: hidden; }
-.nav-nieve i { position: absolute; top: -10%; left: var(--x); font-style: normal; font-size: var(--s); color: #ffffff; opacity: 0.9;
+.nav-nieve i { position: absolute; top: -10%; left: var(--x); font-style: normal; font-size: var(--s); color: #ffffff; opacity: 0.65;
   text-shadow: 0 0 3px var(--nav1), 0 0 6px rgba(0,0,0,0.15); animation: navCae var(--d) linear var(--r) infinite; }
+.nav-nieve i.cerca { opacity: 0.95; filter: blur(0.5px); }
 @keyframes navCae { 0% { transform: translate(0, -10vh) rotate(0deg); } 100% { transform: translate(var(--w), 110vh) rotate(360deg); } }
 /* ===== Luces y adornos colgantes ===== */
 .nav-luces { position: fixed; top: 0; left: 0; right: 0; height: 22px; display: flex; justify-content: space-around; z-index: 1000000; }
@@ -518,6 +561,14 @@ div[data-testid="stElementContainer"]:has(.nav-decor), div.element-container:has
 .nav-trineo .tr b { position: absolute; left: 6px; top: -14px; font-size: 0.75em; }
 @keyframes navVuelo { 0% { transform: translateX(105vw); } 35% { transform: translateX(-280px); } 100% { transform: translateX(-280px); } }
 @keyframes navRebote { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+/* ===== Duende y reno que caminan por el borde inferior ===== */
+.nav-camina { position: fixed; bottom: 2px; left: 0; z-index: 1000000; font-size: 28px; white-space: nowrap; animation: navCamina 58s linear infinite; }
+.nav-camina span { display: inline-block; animation: navPaso 0.6s ease-in-out infinite alternate; }
+.nav-camina .inv { transform: scaleX(-1); }
+@keyframes navCamina { 0% { transform: translateX(-110px); } 32% { transform: translateX(105vw); } 100% { transform: translateX(105vw); } }
+@keyframes navPaso { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+.nav-camina .inv { animation: navPasoInv 0.6s ease-in-out infinite alternate; }
+@keyframes navPasoInv { from { transform: scaleX(-1) translateY(0); } to { transform: scaleX(-1) translateY(-5px); } }
 /* ===== Muñeco de nieve y árbol (solo en pantallas anchas, en los márgenes) ===== */
 .nav-muneco, .nav-arbol { position: fixed; bottom: 10px; width: 80px; z-index: 998; display: none; }
 .nav-muneco { left: 10px; }
@@ -536,37 +587,60 @@ div[data-testid="stElementContainer"]:has(.nav-decor), div.element-container:has
 /* ===== Accesibilidad: sin movimiento si el usuario lo prefiere ===== */
 @media (prefers-reduced-motion: reduce) {
   .nav-nieve i, .nav-luces i, .nav-adorno, .nav-trineo, .nav-trineo span, .nav-muneco svg, .nav-brazo, .nav-bola,
-  .nav-estrella, .nav-regalo, .banner::before, .avatar-container::after, .avatar-container::before { animation: none; }
+  .nav-estrella, .nav-regalo, .banner::before, .avatar-container::after, .avatar-container::before, .nav-blob, .nav-patron,
+  .nav-chispa, .nav-fugaz, .nav-camina, .nav-camina span, .banner { animation: none; }
 }
 """
  
  
 def aplicar_tema_navidad():
-    rnd = random.Random(2026)  # semilla fija: los copos no cambian de posición entre recargas
-    copos = "".join(
-        f'<i style="--x:{rnd.randint(0, 98)}%;--s:{rnd.randint(10, 22)}px;--d:{rnd.randint(9, 18)}s;'
-        f'--r:-{rnd.randint(0, 18)}s;--w:{rnd.randint(-60, 60)}px">{rnd.choice(["❄", "❅", "❆"])}</i>'
-        for _ in range(26)
+    rnd = random.Random(2026)  # semilla fija: los elementos no cambian de posición entre recargas
+    glifos = ["❄", "❅", "❆"]
+    lejos = "".join(
+        f'<i style="--x:{rnd.randint(0, 98)}%;--s:{rnd.randint(9, 14)}px;--d:{rnd.randint(16, 26)}s;'
+        f'--r:-{rnd.randint(0, 26)}s;--w:{rnd.randint(-50, 50)}px">{rnd.choice(glifos)}</i>'
+        for _ in range(30)
+    )
+    cerca = "".join(
+        f'<i class="cerca" style="--x:{rnd.randint(0, 98)}%;--s:{rnd.randint(20, 30)}px;--d:{rnd.randint(8, 12)}s;'
+        f'--r:-{rnd.randint(0, 12)}s;--w:{rnd.randint(-90, 90)}px">{rnd.choice(glifos)}</i>'
+        for _ in range(9)
+    )
+    chispas = "".join(
+        f'<span class="nav-chispa" style="--x:{rnd.randint(2, 96)}%;--y:{rnd.randint(8, 92)}%;--s:{rnd.randint(9, 17)}px;'
+        f'--d:{rnd.randint(3, 6)}s;--r:-{rnd.randint(0, 6)}s">✦</span>'
+        for _ in range(22)
     )
     colores = ["#ef4444", "#22c55e", "#fbbf24", "#3b82f6", "#f472b6"]
     luces = "".join(
         f'<i style="background:{colores[i % 5]};color:{colores[i % 5]};animation-delay:-{(i % 7) * 0.25:.2f}s"></i>'
         for i in range(32)
     )
-    adornos = (
-        '<div class="nav-adorno" style="--x:12%">🔔</div>'
-        '<div class="nav-adorno" style="--x:47%;animation-delay:-1s">⭐</div>'
-        '<div class="nav-adorno" style="--x:83%;animation-delay:-2s">🧦</div>'
+    adornos = "".join(
+        f'<div class="nav-adorno" style="--x:{x}%;animation-delay:-{i * 0.5:.1f}s">{e}</div>'
+        for i, (x, e) in enumerate([(6, "🎄"), (19, "🔔"), (33, "🍭"), (47, "⭐"), (62, "🧦"), (76, "🎁"), (90, "🔔")])
+    )
+    fondo = (
+        '<div class="nav-blob b1"></div><div class="nav-blob b2"></div>'
+        '<div class="nav-blob b3"></div><div class="nav-blob b4"></div>'
+        '<div class="nav-patron p1"></div><div class="nav-patron p2"></div>'
+        f'{chispas}<div class="nav-fugaz f1"></div><div class="nav-fugaz f2"></div>'
     )
     trineo = ('<div class="nav-trineo"><span>🦌</span><span style="animation-delay:-0.4s">🦌</span>'
               '<span class="tr" style="animation-delay:-0.8s">🛷<b>🎅</b></span><span>✨</span></div>')
-    muneco = f'<div class="nav-muneco">{MUNECO_SVG}</div>'
-    arbol = f'<div class="nav-arbol">{ARBOL_SVG}<span class="nav-regalo">🎁</span></div>'
-    css = CSS_NAVIDAD.replace("__GORRO__", _b64_svg(GORRO_SVG))
+    camina = ('<div class="nav-camina"><span class="inv">🦌</span>'
+              '<span style="animation-delay:-0.3s">🧝</span></div>')
+    muneco = (f'<div class="nav-muneco">{MUNECO_SVG}'
+              '<span class="nav-regalo" style="left:68px;font-size:22px;animation-delay:-0.8s">🎁</span></div>')
+    arbol = (f'<div class="nav-arbol">{ARBOL_SVG}<span class="nav-regalo">🎁</span>'
+             '<span class="nav-regalo" style="left:-48px;font-size:20px;animation-delay:-0.6s">🍬</span></div>')
+    css = (CSS_NAVIDAD
+           .replace("__GORRO__", _b64_svg(GORRO_SVG))
+           .replace("__TILE__", _b64_svg(TILE_COPOS_SVG)))
     st.markdown(
         "<style>" + css + "</style>"
-        f'<div class="nav-decor"><div class="nav-nieve">{copos}</div><div class="nav-luces">{luces}</div>'
-        f'{adornos}{trineo}{muneco}{arbol}</div>',
+        f'<div class="nav-decor">{fondo}<div class="nav-nieve">{lejos}{cerca}</div><div class="nav-luces">{luces}</div>'
+        f'{adornos}{trineo}{camina}{muneco}{arbol}</div>',
         unsafe_allow_html=True,
     )
  
@@ -1225,3 +1299,4 @@ with tab_cierre:
         st.session_state.pop("efectivo_contado_val", None)
         
         avisar("¡Cierre de caja guardado con éxito y valores restablecidos a cero!", "🔒")
+ 
